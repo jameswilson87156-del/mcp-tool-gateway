@@ -8,6 +8,8 @@ MCP Tool Gateway is an MCP-style enterprise Agent tool gateway for Tool / Prompt
 
 ![Human Review Center](docs/images/human-review-center.png)
 
+![Trace Evidence](docs/images/trace-evidence.png)
+
 ## Positioning
 
 This project is aimed at enterprise AI Agent tool access and governance. The default entry is the Tool Call Workbench, because it shows the core value chain directly:
@@ -19,9 +21,9 @@ Tool selection -> JSON parameters -> sandbox invocation -> response preview -> P
 - Backend: Spring Boot 3, Java 17, Maven.
 - Frontend: Vue 3, Vite, TypeScript.
 - Screenshots: Playwright.
-- Data: in-memory demo data for P1.
+- Data: in-memory demo/sandbox data.
 
-## P1 Implemented
+## Implemented
 
 - Demo auth endpoints.
 - Tool registry endpoints.
@@ -31,9 +33,9 @@ Tool selection -> JSON parameters -> sandbox invocation -> response preview -> P
 - Trace Evidence events for each invocation.
 - Prompt and Resource list endpoints.
 - B2-inspired Tool Call Workbench as the default frontend page.
-- P2 placeholder pages for the rest of the navigation.
 - Tool Registry page for Tool, Schema, Provider, risk, version, approval, and permission scope inspection.
 - Human Review Center page for pending high-risk Tool Call review, approve/reject/request-changes actions, Trace Evidence, and Audit Log context.
+- Trace Evidence governance center with filters, Trace list, timeline drilldown, step evidence, JSON evidence, and Audit Evidence.
 
 ## Boundaries
 
@@ -79,6 +81,8 @@ The frontend calls `http://localhost:8080/api` first. If the backend is unavaila
 - `GET /api/tool-calls`
 - `GET /api/tool-calls/{id}`
 - `GET /api/tool-calls/{id}/trace`
+- `GET /api/traces`
+- `GET /api/traces/{traceId}`
 - `GET /api/reviews`
 - `POST /api/reviews/{id}/approve`
 - `POST /api/reviews/{id}/reject`

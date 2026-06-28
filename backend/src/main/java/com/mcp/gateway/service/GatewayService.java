@@ -139,6 +139,57 @@ public class GatewayService {
         return traces.getOrDefault(callId, List.of());
     }
 
+    public List<TraceSummary> listTraceSummaries(CallStatus status, RiskLevel riskLevel, String toolName, Boolean reviewRequired, String keyword) {
+        var normalizedKeyword = keyword == null ? "" : keyword.trim().toLowerCase(Locale.ROOT);
+        var normalizedTool = toolName == null ? "" : toolName.trim().toLowerCase(Locale.ROOT);
+        return calls.values().stream()
+                .filter(call -> status == null || call.status() == status)
+                .filter(call -> riskLevel == null || call.riskLevel() == riskLevel)
+                .filter(call -> normalizedTool.isBlank() || call.toolName().toLowerCase(Locale.ROOT).contains(normalizedTool))
+                .filter(call -> reviewRequired == null || isReviewRequired(call) == reviewRequired)
+                .filter(call -> normalizedKeyword.isBlank() || traceKeyword(call).contains(normalizedKeyword))
+                .sorted(Comparator.comparing(ToolCallRecord::createdAt).reversed())
+                .map(this::toTraceSummary)
+                .toList();
+    }
+
+    public TraceDetail getTraceDetail(String traceId) {
+        var callId = callIdFromTraceId(traceId);
+        var call = getCall(callId);
+        var tool = requireTool(call.toolId());
+        var review = call.reviewId() == null ? null : reviews.get(call.reviewId());
+        var relatedAuditLogs = relatedAuditLogs(call).stream()
+                .sorted(Comparator.comparing(AuditLogEntry::timestamp).reversed())
+                .toList();
+        var events = getTrace(call.id());
+        var permissionResult = events.stream()
+                .filter(event -> event.step().equals("Permission Check"))
+                .findFirst()
+                .map(TraceEvent::message)
+                .orElse("RBAC demo permission check recorded");
+        var errorMessage = call.status() == CallStatus.BLOCKED || call.status() == CallStatus.FAILED
+                ? String.valueOf(call.response().getOrDefault("message", "Trace indicates blocked or failed execution"))
+                : null;
+        return new TraceDetail(
+                traceIdFor(call.id()),
+                call.id(),
+                call,
+                tool.schema(),
+                call.request(),
+                call.response(),
+                call.status(),
+                call.riskLevel(),
+                permissionResult,
+                isReviewRequired(call),
+                review == null ? "NOT_REQUIRED" : review.decision(),
+                review == null ? null : review.reviewer(),
+                relatedAuditLogs,
+                events,
+                totalLatencyMs(call),
+                errorMessage
+        );
+    }
+
     public List<ToolCallReview> listReviews() {
         return reviews.values().stream()
                 .sorted(Comparator.comparing(ToolCallReview::createdAt).reversed())
@@ -252,6 +303,97 @@ public class GatewayService {
 
     private List<String> requiredParameterNames(ToolDefinition tool) {
         return tool.parameters().stream().filter(ToolParameterSchema::required).map(ToolParameterSchema::name).toList();
+    }
+
+    private TraceSummary toTraceSummary(ToolCallRecord call) {
+        return new TraceSummary(
+                traceIdFor(call.id()),
+                call.id(),
+                call.toolName(),
+                call.requester(),
+                call.riskLevel(),
+                call.status(),
+                reviewStatus(call),
+                totalLatencyMs(call),
+                call.createdAt(),
+                call.provider(),
+                fallbackUsed(call),
+                isReviewRequired(call)
+        );
+    }
+
+    private String traceIdFor(String callId) {
+        return "trace_" + callId.replace("call_", "");
+    }
+
+    private String callIdFromTraceId(String traceId) {
+        if (traceId.startsWith("trace_")) {
+            var suffix = traceId.substring("trace_".length());
+            var possibleCallId = "call_" + suffix;
+            if (calls.containsKey(possibleCallId)) {
+                return possibleCallId;
+            }
+        }
+        if (calls.containsKey(traceId)) {
+            return traceId;
+        }
+        throw new NoSuchElementException("Trace not found: " + traceId);
+    }
+
+    private CallStatus reviewStatus(ToolCallRecord call) {
+        if (call.reviewId() == null) {
+            return isReviewRequired(call) ? call.status() : CallStatus.SUCCESS;
+        }
+        var review = reviews.get(call.reviewId());
+        return review == null ? call.status() : review.status();
+    }
+
+    private boolean isReviewRequired(ToolCallRecord call) {
+        var tool = tools.get(call.toolId());
+        return tool != null && tool.approvalRequired();
+    }
+
+    private boolean fallbackUsed(ToolCallRecord call) {
+        return call.status() == CallStatus.BLOCKED
+                || getTrace(call.id()).stream().anyMatch(event -> event.message().toLowerCase(Locale.ROOT).contains("fallback"));
+    }
+
+    private long totalLatencyMs(ToolCallRecord call) {
+        var traceSum = getTrace(call.id()).stream()
+                .mapToLong(event -> parseLatencyMs(event.latency()))
+                .sum();
+        return traceSum > 0 ? traceSum : parseLatencyMs(call.latency());
+    }
+
+    private long parseLatencyMs(String latency) {
+        if (latency == null) {
+            return 0;
+        }
+        var digits = latency.replaceAll("[^0-9]", "");
+        if (digits.isBlank()) {
+            return 0;
+        }
+        return Long.parseLong(digits);
+    }
+
+    private String traceKeyword(ToolCallRecord call) {
+        return String.join(" ",
+                traceIdFor(call.id()),
+                call.id(),
+                call.toolName(),
+                call.requester(),
+                call.provider(),
+                call.status().name(),
+                call.riskLevel().name()
+        ).toLowerCase(Locale.ROOT);
+    }
+
+    private List<AuditLogEntry> relatedAuditLogs(ToolCallRecord call) {
+        return auditLogs.stream()
+                .filter(log -> log.targetId().equals(call.id())
+                        || (call.reviewId() != null && log.targetId().equals(call.reviewId()))
+                        || String.valueOf(log.metadata().getOrDefault("callId", "")).equals(call.id()))
+                .toList();
     }
 
     private ToolDefinition withRecentCallCount(ToolDefinition tool) {

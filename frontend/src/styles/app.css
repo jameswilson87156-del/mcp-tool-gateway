@@ -979,6 +979,229 @@ h2 {
   color: var(--muted);
 }
 
+.governance-summary-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.governance-summary-strip div {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  padding: 12px 14px;
+}
+
+.governance-summary-strip span,
+.trace-detail-facts span {
+  display: block;
+  color: var(--muted);
+  font-size: 13px;
+  margin-bottom: 5px;
+}
+
+.governance-summary-strip strong {
+  font-size: 20px;
+}
+
+.trace-filter-bar {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) 160px 190px 220px 220px;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.trace-filter-bar .search-box {
+  width: 100%;
+}
+
+.trace-filter-bar select {
+  height: 42px;
+  padding: 0 12px;
+}
+
+.trace-governance-layout {
+  display: grid;
+  grid-template-columns: minmax(330px, 0.8fr) minmax(540px, 1.25fr) minmax(360px, 0.86fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.trace-list-panel,
+.trace-timeline-detail,
+.trace-step-detail-panel,
+.audit-evidence-panel,
+.trace-json-viewer {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  padding: 16px;
+}
+
+.trace-list-panel {
+  min-height: 620px;
+}
+
+.trace-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.trace-list-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  min-height: 112px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  padding: 12px;
+  text-align: left;
+}
+
+.trace-list-row.selected,
+.trace-step-card.selected {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 2px rgba(23, 105, 246, 0.12);
+}
+
+.trace-row-main,
+.trace-row-meta {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.trace-row-main small,
+.trace-row-meta small {
+  color: var(--muted);
+}
+
+.trace-row-main strong,
+.trace-row-main small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.trace-center-column {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.trace-step-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.trace-step-card {
+  min-height: 150px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  padding: 12px;
+  text-align: left;
+}
+
+.trace-step-card strong {
+  display: block;
+  margin-bottom: 8px;
+}
+
+.trace-step-card p {
+  min-height: 42px;
+  margin: 10px 0;
+  color: #4b5666;
+  font-size: 14px;
+}
+
+.trace-step-card small {
+  color: var(--muted);
+}
+
+.trace-step-detail-panel {
+  position: sticky;
+  top: 92px;
+  display: grid;
+  gap: 12px;
+  max-height: calc(100vh - 112px);
+  overflow: auto;
+}
+
+.trace-detail-facts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.trace-detail-facts div {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.trace-detail-facts strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.trace-json-viewer {
+  padding: 12px;
+}
+
+.trace-json-viewer h3 {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+
+.trace-json-viewer pre,
+.audit-evidence-item pre {
+  margin: 0;
+  max-height: 180px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fcfdff;
+  color: #244472;
+  padding: 12px;
+  line-height: 1.55;
+  font-family: "JetBrains Mono", Consolas, monospace;
+}
+
+.audit-evidence-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.audit-evidence-item {
+  display: grid;
+  gap: 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.audit-evidence-item span,
+.audit-evidence-item small {
+  color: var(--muted);
+}
+
+.empty-state {
+  border: 1px dashed var(--line-strong);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--muted);
+  padding: 24px;
+  margin-top: 14px;
+}
+
 @media (max-width: 1300px) {
   body {
     min-width: 1080px;
@@ -1002,11 +1225,22 @@ h2 {
   }
 
   .registry-layout,
-  .review-layout {
+  .review-layout,
+  .trace-governance-layout {
     grid-template-columns: 1fr;
   }
 
-  .decision-panel {
+  .decision-panel,
+  .trace-step-detail-panel {
     position: static;
+    max-height: none;
+  }
+
+  .trace-filter-bar {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .governance-summary-strip {
+    grid-template-columns: repeat(2, 1fr);
   }
 }

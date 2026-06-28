@@ -61,6 +61,10 @@ async function capturePages(page, outputDir) {
   await page.getByRole('button', { name: /Human Review/ }).click()
   await page.waitForTimeout(500)
   await page.screenshot({ path: resolve(outputDir, 'human-review-center.png'), fullPage: true })
+
+  await page.getByRole('button', { name: /Trace Evidence/ }).click()
+  await page.waitForTimeout(500)
+  await page.screenshot({ path: resolve(outputDir, 'trace-evidence.png'), fullPage: true })
 }
 
 async function waitForServer(target, timeout = 30000) {

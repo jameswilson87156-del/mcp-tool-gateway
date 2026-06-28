@@ -1,4 +1,13 @@
-import type { AuditLogEntry, DashboardStats, ToolCallRecord, ToolCallReview, ToolDefinition, TraceEvent } from '../types'
+import type {
+  AuditLogEntry,
+  DashboardStats,
+  ToolCallRecord,
+  ToolCallReview,
+  ToolDefinition,
+  TraceDetail,
+  TraceEvent,
+  TraceSummary
+} from '../types'
 
 const DEMO_CALL_ID = 'call_demo_01HX6Z8K'
 const now = () => new Date().toISOString()
@@ -94,6 +103,42 @@ export const demoAuditLogs: AuditLogEntry[] = [
     timestamp: now()
   }
 ]
+
+export const demoTraceSummaries: TraceSummary[] = [
+  {
+    traceId: 'trace_demo_01HX6Z8K',
+    callId: DEMO_CALL_ID,
+    toolName: demoCall.toolName,
+    requester: demoCall.requester,
+    riskLevel: demoCall.riskLevel,
+    status: demoCall.status,
+    reviewStatus: 'PENDING_REVIEW',
+    totalLatencyMs: 94,
+    createdAt: demoCall.createdAt,
+    provider: demoCall.provider,
+    fallbackUsed: false,
+    reviewRequired: true
+  }
+]
+
+export const demoTraceDetail: TraceDetail = {
+  traceId: 'trace_demo_01HX6Z8K',
+  callId: DEMO_CALL_ID,
+  toolCall: demoCall,
+  toolSchemaSummary: demoTools.find((item) => item.id === demoCall.toolId)?.schema ?? {},
+  inputJson: demoCall.request,
+  outputJson: demoCall.response,
+  status: demoCall.status,
+  riskLevel: demoCall.riskLevel,
+  permissionResult: 'RBAC demo permission check recorded',
+  reviewRequired: true,
+  reviewDecision: 'PENDING',
+  reviewer: null,
+  auditLogs: demoAuditLogs,
+  traceEvents: demoTrace,
+  totalLatencyMs: 94,
+  errorMessage: null
+}
 
 export function parametersFor(toolDefinition: ToolDefinition): Record<string, unknown> {
   return Object.fromEntries(toolDefinition.parameters.map((item) => [item.name, item.example]))

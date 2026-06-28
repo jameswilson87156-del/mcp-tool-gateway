@@ -1,6 +1,15 @@
-import { demoCall, demoStats, demoTools, demoTrace } from '../data/demo'
-import { demoAuditLogs, demoReviews } from '../data/demo'
-import type { AuditLogEntry, DashboardStats, ToolCallRecord, ToolCallReview, ToolDefinition, TraceEvent } from '../types'
+import { demoAuditLogs, demoCall, demoReviews, demoStats, demoTools, demoTrace, demoTraceDetail, demoTraceSummaries } from '../data/demo'
+import type {
+  AuditLogEntry,
+  DashboardStats,
+  ToolCallRecord,
+  ToolCallReview,
+  ToolDefinition,
+  TraceDetail,
+  TraceEvent,
+  TraceFilters,
+  TraceSummary
+} from '../types'
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:8080/api'
 
@@ -72,12 +81,36 @@ export function getAuditLogs() {
   return request<AuditLogEntry[]>('/audit-logs')
 }
 
+export function getTraces(filters?: Partial<TraceFilters>) {
+  const params = new URLSearchParams()
+  if (filters?.keyword) params.set('keyword', filters.keyword)
+  if (filters?.riskLevel && filters.riskLevel !== 'ALL') params.set('riskLevel', filters.riskLevel)
+  if (filters?.status && filters.status !== 'ALL') params.set('status', filters.status)
+  if (filters?.reviewRequired === 'YES') params.set('reviewRequired', 'true')
+  if (filters?.reviewRequired === 'NO') params.set('reviewRequired', 'false')
+  if (filters?.toolName) params.set('toolName', filters.toolName)
+  const query = params.toString()
+  return request<TraceSummary[]>(`/traces${query ? `?${query}` : ''}`)
+}
+
+export function getTraceDetail(traceId: string) {
+  return request<TraceDetail>(`/traces/${traceId}`)
+}
+
 function fallback<T>(path: string, init?: RequestInit): T {
   if (path === '/tools') {
     return demoTools as T
   }
   if (path === '/dashboard/stats') {
     return demoStats as T
+  }
+  if (path.startsWith('/traces/')) {
+    const segments = path.split('/')
+    const traceId = segments[segments.length - 1] ?? demoTraceDetail.traceId
+    return { ...demoTraceDetail, traceId } as T
+  }
+  if (path.startsWith('/traces')) {
+    return demoTraceSummaries as T
   }
   if (path.includes('/trace')) {
     return demoTrace as T

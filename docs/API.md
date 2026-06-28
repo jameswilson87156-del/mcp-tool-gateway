@@ -50,6 +50,52 @@ Invoke request:
 - `GET /tool-calls/{id}`
 - `GET /tool-calls/{id}/trace`
 
+## Trace Evidence
+
+- `GET /traces`
+- `GET /traces/{traceId}`
+
+`GET /traces` supports in-memory filtering:
+
+- `status`
+- `riskLevel`
+- `toolName`
+- `reviewRequired`
+- `keyword`
+
+Trace summary fields include:
+
+- `traceId`
+- `callId`
+- `toolName`
+- `requester`
+- `riskLevel`
+- `status`
+- `reviewStatus`
+- `totalLatencyMs`
+- `createdAt`
+- `provider`
+- `fallbackUsed`
+
+Trace detail fields include:
+
+- `traceId`
+- `callId`
+- `toolCall`
+- `toolSchema`
+- `inputJson`
+- `outputJson`
+- `status`
+- `riskLevel`
+- `permissionResult`
+- `reviewRequired`
+- `reviewDecision`
+- `reviewer`
+- `auditLogs`
+- `traceEvents`
+- `totalLatencyMs`
+- `errorMessage`
+
 ## Reviews
 
 - `GET /reviews`

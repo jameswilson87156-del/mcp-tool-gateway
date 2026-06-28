@@ -117,6 +117,40 @@ class ApiControllerTests {
     }
 
     @Test
+    void listsTraceSummariesWithFilters() throws Exception {
+        mockMvc.perform(get("/api/traces")
+                        .param("riskLevel", "HIGH")
+                        .param("reviewRequired", "true")
+                        .param("keyword", "db.query"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].traceId").exists())
+                .andExpect(jsonPath("$[0].callId").exists())
+                .andExpect(jsonPath("$[0].toolName").value("db.query.readonly"))
+                .andExpect(jsonPath("$[0].reviewRequired").value(true))
+                .andExpect(jsonPath("$[0].totalLatencyMs").exists());
+    }
+
+    @Test
+    void returnsTraceDetailByTraceId() throws Exception {
+        var response = mockMvc.perform(get("/api/traces"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].traceId").exists())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        var traceId = response.replaceAll("(?s).*?\\\"traceId\\\"\\s*:\\s*\\\"([^\\\"]+)\\\".*", "$1");
+
+        mockMvc.perform(get("/api/traces/{traceId}", traceId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.traceId").value(traceId))
+                .andExpect(jsonPath("$.toolCall").exists())
+                .andExpect(jsonPath("$.toolSchemaSummary.type").value("object"))
+                .andExpect(jsonPath("$.traceEvents[?(@.step == 'Schema Check')]").exists())
+                .andExpect(jsonPath("$.auditLogs").exists());
+    }
+
+    @Test
     void blocksDangerousSqlEvenForReadonlyTool() throws Exception {
         mockMvc.perform(post("/api/tools/db.query.readonly/invoke")
                         .contentType(MediaType.APPLICATION_JSON)

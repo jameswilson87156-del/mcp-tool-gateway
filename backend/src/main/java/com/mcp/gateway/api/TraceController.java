@@ -1,0 +1,42 @@
+package com.mcp.gateway.api;
+
+import com.mcp.gateway.model.CallStatus;
+import com.mcp.gateway.model.RiskLevel;
+import com.mcp.gateway.model.TraceDetail;
+import com.mcp.gateway.model.TraceSummary;
+import com.mcp.gateway.service.GatewayService;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
+
+@RestController
+@CrossOrigin(origins = "*")
+@RequestMapping("/api/traces")
+public class TraceController {
+    private final GatewayService gateway;
+
+    public TraceController(GatewayService gateway) {
+        this.gateway = gateway;
+    }
+
+    @GetMapping
+    public List<TraceSummary> traces(
+            @RequestParam(required = false) CallStatus status,
+            @RequestParam(required = false) RiskLevel riskLevel,
+            @RequestParam(required = false) String toolName,
+            @RequestParam(required = false) Boolean reviewRequired,
+            @RequestParam(required = false) String keyword
+    ) {
+        return gateway.listTraceSummaries(status, riskLevel, toolName, reviewRequired, keyword);
+    }
+
+    @GetMapping("/{traceId}")
+    public TraceDetail traceDetail(@PathVariable String traceId) {
+        return gateway.getTraceDetail(traceId);
+    }
+}
