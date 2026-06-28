@@ -1,5 +1,6 @@
 import { demoCall, demoStats, demoTools, demoTrace } from '../data/demo'
-import type { DashboardStats, ToolCallRecord, ToolDefinition, TraceEvent } from '../types'
+import { demoAuditLogs, demoReviews } from '../data/demo'
+import type { AuditLogEntry, DashboardStats, ToolCallRecord, ToolCallReview, ToolDefinition, TraceEvent } from '../types'
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:8080/api'
 
@@ -34,6 +35,10 @@ export function getStats() {
   return request<DashboardStats>('/dashboard/stats')
 }
 
+export function getToolCalls() {
+  return request<ToolCallRecord[]>('/tool-calls')
+}
+
 export function invokeTool(toolId: string, parameters: Record<string, unknown>) {
   return request<ToolCallRecord>(`/tools/${toolId}/invoke`, {
     method: 'POST',
@@ -49,6 +54,24 @@ export function getTrace(callId: string) {
   return request<TraceEvent[]>(`/tool-calls/${callId}/trace`)
 }
 
+export function getReviews() {
+  return request<ToolCallReview[]>('/reviews')
+}
+
+export function decideReview(reviewId: string, action: 'approve' | 'reject' | 'request-changes', comment: string) {
+  return request<ToolCallReview>(`/reviews/${reviewId}/${action}`, {
+    method: 'POST',
+    body: JSON.stringify({
+      reviewer: 'reviewer.li',
+      comment
+    })
+  })
+}
+
+export function getAuditLogs() {
+  return request<AuditLogEntry[]>('/audit-logs')
+}
+
 function fallback<T>(path: string, init?: RequestInit): T {
   if (path === '/tools') {
     return demoTools as T
@@ -58,6 +81,18 @@ function fallback<T>(path: string, init?: RequestInit): T {
   }
   if (path.includes('/trace')) {
     return demoTrace as T
+  }
+  if (path === '/tool-calls') {
+    return [demoCall] as T
+  }
+  if (path === '/reviews') {
+    return demoReviews as T
+  }
+  if (path.includes('/reviews/')) {
+    return { ...demoReviews[0], status: path.includes('approve') ? 'APPROVED' : path.includes('reject') ? 'REJECTED' : 'CHANGES_REQUESTED' } as T
+  }
+  if (path === '/audit-logs') {
+    return demoAuditLogs as T
   }
   if (path.includes('/invoke')) {
     const body = init?.body ? JSON.parse(String(init.body)) : { parameters: {} }

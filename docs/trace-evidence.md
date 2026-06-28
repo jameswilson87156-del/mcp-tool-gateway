@@ -17,3 +17,20 @@ For `LOW` and `MEDIUM` risk tools, Human Review records `无需审批` and the s
 For `HIGH` risk tools, the call enters `PENDING_REVIEW`; execution waits for an explicit approve/reject/request-changes action.
 
 For blocked SQL on `db.query.readonly`, `local-rule fallback` blocks the request and no sandbox execution runs.
+
+## P2 Review Actions
+
+Human Review Center calls the backend review endpoints directly:
+
+- `POST /api/reviews/{id}/approve`
+- `POST /api/reviews/{id}/reject`
+- `POST /api/reviews/{id}/request-changes`
+
+Each decision updates:
+
+- `ToolCallReview`
+- `ToolCallRecord`
+- `TraceEvent`
+- `AuditLogEntry`
+
+`CHANGES_REQUESTED` means a reviewer asked for narrower scope, extra context, or safer parameters before approving a high-risk Tool Call.

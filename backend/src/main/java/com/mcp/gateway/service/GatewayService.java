@@ -30,6 +30,7 @@ public class GatewayService {
         seedTools();
         seedPrompts();
         seedResources();
+        seedPendingReview();
     }
 
     public UserAccount login(String username) {
@@ -49,11 +50,11 @@ public class GatewayService {
     }
 
     public List<ToolDefinition> listTools() {
-        return List.copyOf(tools.values());
+        return tools.values().stream().map(this::withRecentCallCount).toList();
     }
 
     public ToolDefinition getTool(String id) {
-        return requireTool(id);
+        return withRecentCallCount(requireTool(id));
     }
 
     public ToolCallRecord invoke(String id, InvokeRequest request) {
@@ -78,13 +79,12 @@ public class GatewayService {
         events.add(trace(callId, "Permission Check", CallStatus.SUCCESS, "校验 RBAC demo 权限范围", "42 ms",
                 Map.of("scopes", tool.permissionScopes(), "role", demoAdmin.role())));
 
-        ToolCallRecord record;
         if (tool.riskLevel() == RiskLevel.BLOCKED || containsBlockedSql(tool, requestParams)) {
             events.add(trace(callId, "Human Review", CallStatus.BLOCKED, "local-rule fallback 阻断危险操作", "12 ms",
                     Map.of("reason", "blocked risk or non-readonly SQL")));
             events.add(trace(callId, "Execute", CallStatus.BLOCKED, "已阻断，未执行 sandbox demo", "0 ms", Map.of()));
             events.add(trace(callId, "Audit Log", CallStatus.SUCCESS, "写入 Audit Log", "6 ms", Map.of("action", "tool.invoke.blocked")));
-            record = new ToolCallRecord(callId, tool.id(), tool.name(), requester, tool.provider(), environment,
+            var record = new ToolCallRecord(callId, tool.id(), tool.name(), requester, tool.provider(), environment,
                     RiskLevel.BLOCKED, CallStatus.BLOCKED, requestParams, Map.of("blocked", true, "message", "local-rule fallback blocked this request"),
                     null, "90 ms", now, now);
             calls.put(callId, record);
@@ -99,7 +99,7 @@ public class GatewayService {
                     Map.of("reviewId", reviewId, "riskLevel", tool.riskLevel())));
             events.add(trace(callId, "Execute", CallStatus.PENDING_REVIEW, "等待人工审批，未执行 sandbox demo", "0 ms", Map.of()));
             events.add(trace(callId, "Audit Log", CallStatus.SUCCESS, "写入 Audit Log", "6 ms", Map.of("action", "tool.invoke.pending_review")));
-            record = new ToolCallRecord(callId, tool.id(), tool.name(), requester, tool.provider(), environment,
+            var record = new ToolCallRecord(callId, tool.id(), tool.name(), requester, tool.provider(), environment,
                     tool.riskLevel(), CallStatus.PENDING_REVIEW, requestParams, Map.of("pendingReview", true),
                     reviewId, "83 ms", now, now);
             var review = new ToolCallReview(reviewId, callId, tool.id(), tool.riskLevel(), CallStatus.PENDING_REVIEW,
@@ -117,7 +117,7 @@ public class GatewayService {
         events.add(trace(callId, "Execute", CallStatus.SUCCESS, "执行 sandbox demo Tool 逻辑", "176 ms",
                 Map.of("provider", tool.provider(), "sandbox", true)));
         events.add(trace(callId, "Audit Log", CallStatus.SUCCESS, "写入 Audit Log", "6 ms", Map.of("action", "tool.invoke.success")));
-        record = new ToolCallRecord(callId, tool.id(), tool.name(), requester, tool.provider(), environment,
+        var record = new ToolCallRecord(callId, tool.id(), tool.name(), requester, tool.provider(), environment,
                 tool.riskLevel(), CallStatus.SUCCESS, requestParams, response, null, "286 ms", now, now);
         calls.put(callId, record);
         traces.put(callId, events);
@@ -180,12 +180,12 @@ public class GatewayService {
         var review = requireReview(id);
         var call = getCall(review.callId());
         var now = Instant.now();
-        var updated = new ToolCallReview(id, review.callId(), review.toolId(), review.riskLevel(), CallStatus.DRAFT,
+        var updated = new ToolCallReview(id, review.callId(), review.toolId(), review.riskLevel(), CallStatus.CHANGES_REQUESTED,
                 reviewer(request), "REQUEST_CHANGES", comment(request, "需要补充上下文或缩小权限范围"), review.createdAt(), now);
         calls.put(call.id(), new ToolCallRecord(call.id(), call.toolId(), call.toolName(), call.requester(), call.provider(),
-                call.environment(), call.riskLevel(), CallStatus.DRAFT, call.request(), Map.of("changesRequested", true), id, call.latency(), call.createdAt(), now));
+                call.environment(), call.riskLevel(), CallStatus.CHANGES_REQUESTED, call.request(), Map.of("changesRequested", true), id, call.latency(), call.createdAt(), now));
         reviews.put(id, updated);
-        appendTrace(call.id(), "Human Review", CallStatus.DRAFT, "要求补充信息: " + updated.comment(), "18 ms", Map.of("reviewer", updated.reviewer()));
+        appendTrace(call.id(), "Human Review", CallStatus.CHANGES_REQUESTED, "要求补充信息: " + updated.comment(), "18 ms", Map.of("reviewer", updated.reviewer()));
         audit(updated.reviewer(), "review.request_changes", "ToolCallReview", id, Map.of("callId", call.id()));
         return updated;
     }
@@ -196,6 +196,12 @@ public class GatewayService {
 
     public List<ResourceDocument> listResources() {
         return List.copyOf(resources);
+    }
+
+    public List<AuditLogEntry> listAuditLogs() {
+        return auditLogs.stream()
+                .sorted(Comparator.comparing(AuditLogEntry::timestamp).reversed())
+                .toList();
     }
 
     public Map<String, Object> dashboardStats() {
@@ -248,6 +254,26 @@ public class GatewayService {
         return tool.parameters().stream().filter(ToolParameterSchema::required).map(ToolParameterSchema::name).toList();
     }
 
+    private ToolDefinition withRecentCallCount(ToolDefinition tool) {
+        var count = (int) calls.values().stream().filter(call -> call.toolId().equals(tool.id())).count();
+        return new ToolDefinition(
+                tool.id(),
+                tool.name(),
+                tool.description(),
+                tool.category(),
+                tool.provider(),
+                tool.version(),
+                tool.riskLevel(),
+                tool.status(),
+                tool.approvalRequired(),
+                tool.parameters(),
+                tool.schema(),
+                tool.permissionScopes(),
+                count,
+                tool.updatedAt()
+        );
+    }
+
     private boolean containsBlockedSql(ToolDefinition tool, Map<String, Object> params) {
         if (!tool.id().equals("db.query.readonly")) {
             return false;
@@ -280,23 +306,52 @@ public class GatewayService {
     }
 
     private void seedTools() {
-        addTool("weather.lookup", "weather.lookup", "查询城市天气 demo 数据", "Weather Sandbox", "v1.0.0", RiskLevel.LOW,
+        addTool("weather.lookup", "weather.lookup", "查询城市天气 demo 数据", "External Data", "Weather Sandbox", "v1.0.0", RiskLevel.LOW,
                 List.of(param("city", "string", true, "城市", "上海")), List.of("weather:read"));
-        addTool("ticket.search", "ticket.search", "查询工单列表", "Ticket Service", "v1.1.0", RiskLevel.LOW,
+        addTool("ticket.search", "ticket.search", "查询工单列表", "Operations", "Ticket Service", "v1.1.0", RiskLevel.LOW,
                 List.of(param("keyword", "string", false, "关键词", "latency")), List.of("ticket:read"));
-        addTool("resume.analyze", "resume.analyze", "分析简历文本并输出 demo 建议", "HR Sandbox", "v0.9.0", RiskLevel.MEDIUM,
+        addTool("resume.analyze", "resume.analyze", "分析简历文本并输出 demo 建议", "HR", "HR Sandbox", "v0.9.0", RiskLevel.MEDIUM,
                 List.of(param("resume_text", "string", true, "简历文本", "Java developer")), List.of("hr:resume:read"));
-        addTool("github.issue.search", "github.issue.search", "搜索 GitHub issue demo 数据", "OpenAI-compatible", "v1.0.4", RiskLevel.MEDIUM,
+        addTool("github.issue.search", "github.issue.search", "搜索 GitHub issue demo 数据", "Developer", "OpenAI-compatible", "v1.0.4", RiskLevel.MEDIUM,
                 List.of(param("repository", "string", true, "仓库", "demo/mcp-gateway"), param("query", "string", false, "搜索条件", "trace")), List.of("github:issue:read"));
-        addTool("db.query.readonly", "db.query.readonly", "执行本地 demo SELECT，只允许只读查询", "Local DB Sandbox", "v1.0.0", RiskLevel.HIGH,
+        addTool("db.query.readonly", "db.query.readonly", "执行本地 demo SELECT，只允许只读查询", "Database", "Local DB Sandbox", "v1.0.0", RiskLevel.HIGH,
                 List.of(param("sql", "string", true, "只读 SELECT SQL", "select * from demo_customers limit 20")), List.of("db:query:readonly"));
-        addTool("crm.customer.search", "crm.customer.search", "查询 CRM 客户 demo 数据", "OpenAI-compatible", "v1.2.0", RiskLevel.MEDIUM,
+        addTool("crm.customer.search", "crm.customer.search", "查询 CRM 客户 demo 数据", "CRM", "OpenAI-compatible", "v1.2.0", RiskLevel.MEDIUM,
                 List.of(param("customer_id", "string", false, "客户 ID", "CUST-202405-000123"), param("region", "string", false, "区域", "APAC"), param("limit", "integer", false, "数量限制", 20)), List.of("crm:customer:read"));
     }
 
-    private void addTool(String id, String name, String description, String provider, String version, RiskLevel riskLevel,
+    private void addTool(String id, String name, String description, String category, String provider, String version, RiskLevel riskLevel,
                          List<ToolParameterSchema> parameters, List<String> scopes) {
-        tools.put(id, new ToolDefinition(id, name, description, provider, version, riskLevel, parameters, scopes));
+        var required = parameters.stream().filter(ToolParameterSchema::required).map(ToolParameterSchema::name).toList();
+        var properties = new LinkedHashMap<String, Object>();
+        for (ToolParameterSchema parameter : parameters) {
+            properties.put(parameter.name(), Map.of(
+                    "type", parameter.type(),
+                    "description", parameter.description(),
+                    "example", parameter.example()
+            ));
+        }
+        var schema = Map.<String, Object>of(
+                "type", "object",
+                "required", required,
+                "properties", properties
+        );
+        tools.put(id, new ToolDefinition(
+                id,
+                name,
+                description,
+                category,
+                provider,
+                version,
+                riskLevel,
+                "ACTIVE",
+                riskLevel == RiskLevel.HIGH || riskLevel == RiskLevel.BLOCKED,
+                parameters,
+                schema,
+                scopes,
+                0,
+                Instant.now().minusSeconds(3600).toString()
+        ));
     }
 
     private ToolParameterSchema param(String name, String type, boolean required, String description, Object example) {
@@ -315,5 +370,13 @@ public class GatewayService {
                 RiskLevel.MEDIUM, List.of("policy", "customer-support"), List.of("resource:policy:read")));
         resources.add(new ResourceDocument("res_customer_knowledge", "customer-knowledge", "Vector Index", "production", "CRM 平台组",
                 RiskLevel.MEDIUM, List.of("crm", "customer"), List.of("resource:customer:read")));
+    }
+
+    private void seedPendingReview() {
+        invoke("db.query.readonly", new InvokeRequest(
+                "production",
+                "alice.zhang",
+                Map.of("sql", "select customer_id, name, status from demo_customers limit 20")
+        ));
     }
 }

@@ -8,6 +8,7 @@ MCP Tool Gateway P1 is a runnable demo project with:
 - Vue 3 + Vite + TypeScript frontend under `frontend`.
 - AI-generated design references under `docs/design/concepts`.
 - Real browser screenshot targets under `docs/images`.
+- P2 Tool Registry and Human Review Center pages.
 
 ## Visual Direction
 
@@ -27,3 +28,9 @@ Default entry is B2 Tool Call Workbench, not a traditional KPI dashboard. Keep t
 - Tool execution is demo/sandbox only.
 - `db.query.readonly` is SELECT-only.
 - Concept images are not runtime product screenshots.
+
+## P2 Notes
+
+- `Tool Registry` is a real page with search, filters, registry rows, Tool Schema, parameters, permission scopes, version, and recent call summary.
+- `Human Review` is a real page with review queue, request detail, Trace Evidence summary, Audit Log, and backend-backed approve/reject/request-changes actions.
+- Remaining full pages are Governance / Trace and Prompt Studio / Resource Library.

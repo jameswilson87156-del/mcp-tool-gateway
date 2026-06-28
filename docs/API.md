@@ -13,6 +13,23 @@ Base URL: `http://localhost:8080/api`
 - `GET /tools/{id}`
 - `POST /tools/{id}/invoke`
 
+Tool fields include:
+
+- `id`
+- `name`
+- `description`
+- `category`
+- `provider`
+- `version`
+- `riskLevel`
+- `status`
+- `approvalRequired`
+- `parameters`
+- `schema`
+- `permissionScopes`
+- `recentCallCount`
+- `updatedAt`
+
 Invoke request:
 
 ```json
@@ -40,11 +57,16 @@ Invoke request:
 - `POST /reviews/{id}/reject`
 - `POST /reviews/{id}/request-changes`
 
+Review state flow:
+
+`PENDING_REVIEW -> APPROVED / REJECTED / CHANGES_REQUESTED`
+
 ## Prompts / Resources / Dashboard
 
 - `GET /prompts`
 - `GET /resources`
 - `GET /dashboard/stats`
+- `GET /audit-logs`
 
 ## Demo Tools
 

@@ -5,6 +5,7 @@ public enum CallStatus {
     PENDING_REVIEW,
     APPROVED,
     REJECTED,
+    CHANGES_REQUESTED,
     RUNNING,
     SUCCESS,
     FAILED,

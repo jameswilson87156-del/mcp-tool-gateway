@@ -4,6 +4,7 @@ export type CallStatus =
   | 'PENDING_REVIEW'
   | 'APPROVED'
   | 'REJECTED'
+  | 'CHANGES_REQUESTED'
   | 'RUNNING'
   | 'SUCCESS'
   | 'FAILED'
@@ -21,11 +22,17 @@ export interface ToolDefinition {
   id: string
   name: string
   description: string
+  category: string
   provider: string
   version: string
   riskLevel: RiskLevel
+  status: string
+  approvalRequired: boolean
   parameters: ToolParameterSchema[]
+  schema: Record<string, unknown>
   permissionScopes: string[]
+  recentCallCount: number
+  updatedAt: string
 }
 
 export interface ToolCallRecord {
@@ -53,6 +60,29 @@ export interface TraceEvent {
   message: string
   latency: string
   evidence: Record<string, unknown>
+  timestamp: string
+}
+
+export interface ToolCallReview {
+  id: string
+  callId: string
+  toolId: string
+  riskLevel: RiskLevel
+  status: CallStatus
+  reviewer?: string | null
+  decision: string
+  comment: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface AuditLogEntry {
+  id: string
+  actor: string
+  action: string
+  targetType: string
+  targetId: string
+  metadata: Record<string, unknown>
   timestamp: string
 }
 

@@ -11,12 +11,13 @@ const label: Record<string, string> = {
   RUNNING: '运行中',
   APPROVED: '已批准',
   REJECTED: '已拒绝',
+  CHANGES_REQUESTED: '需补充',
   DRAFT: '草稿'
 }
 </script>
 
 <template>
-  <span class="badge" :class="`status-${String(status).toLowerCase().replace('_', '-')}`">
+  <span class="badge" :class="`status-${String(status).toLowerCase().replace(/_/g, '-')}`">
     {{ label[status] ?? status }}
   </span>
 </template>

@@ -38,15 +38,29 @@ try {
   const browser = await chromium.launch()
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 })
   await page.goto(url, { waitUntil: 'networkidle' })
-  await page.screenshot({ path: resolve(projectRoot, 'docs', 'images', 'mcp-tool-workbench.png'), fullPage: true })
+  await capturePages(page, resolve(projectRoot, 'docs', 'images'))
 
   await page.setViewportSize({ width: 1920, height: 1080 })
   await page.goto(url, { waitUntil: 'networkidle' })
-  await page.screenshot({ path: resolve(projectRoot, 'docs', 'images', 'large', 'mcp-tool-workbench.png'), fullPage: true })
+  await capturePages(page, resolve(projectRoot, 'docs', 'images', 'large'))
   await browser.close()
 } finally {
   await stopProcess(frontend)
   await stopProcess(backend)
+}
+
+async function capturePages(page, outputDir) {
+  await page.getByRole('button', { name: /Tool Call 工作台/ }).click()
+  await page.waitForLoadState('networkidle')
+  await page.screenshot({ path: resolve(outputDir, 'mcp-tool-workbench.png'), fullPage: true })
+
+  await page.getByRole('button', { name: /Tool Registry/ }).click()
+  await page.waitForTimeout(500)
+  await page.screenshot({ path: resolve(outputDir, 'tool-registry.png'), fullPage: true })
+
+  await page.getByRole('button', { name: /Human Review/ }).click()
+  await page.waitForTimeout(500)
+  await page.screenshot({ path: resolve(outputDir, 'human-review-center.png'), fullPage: true })
 }
 
 async function waitForServer(target, timeout = 30000) {

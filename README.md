@@ -4,6 +4,10 @@ MCP Tool Gateway is an MCP-style enterprise Agent tool gateway for Tool / Prompt
 
 ![MCP Tool Workbench](docs/images/mcp-tool-workbench.png)
 
+![Tool Registry](docs/images/tool-registry.png)
+
+![Human Review Center](docs/images/human-review-center.png)
+
 ## Positioning
 
 This project is aimed at enterprise AI Agent tool access and governance. The default entry is the Tool Call Workbench, because it shows the core value chain directly:
@@ -28,6 +32,8 @@ Tool selection -> JSON parameters -> sandbox invocation -> response preview -> P
 - Prompt and Resource list endpoints.
 - B2-inspired Tool Call Workbench as the default frontend page.
 - P2 placeholder pages for the rest of the navigation.
+- Tool Registry page for Tool, Schema, Provider, risk, version, approval, and permission scope inspection.
+- Human Review Center page for pending high-risk Tool Call review, approve/reject/request-changes actions, Trace Evidence, and Audit Log context.
 
 ## Boundaries
 
@@ -80,3 +86,4 @@ The frontend calls `http://localhost:8080/api` first. If the backend is unavaila
 - `GET /api/prompts`
 - `GET /api/resources`
 - `GET /api/dashboard/stats`
+- `GET /api/audit-logs`
