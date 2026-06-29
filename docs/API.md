@@ -107,10 +107,85 @@ Review state flow:
 
 `PENDING_REVIEW -> APPROVED / REJECTED / CHANGES_REQUESTED`
 
-## Prompts / Resources / Dashboard
+## Prompts
 
 - `GET /prompts`
+- `GET /prompts/{id}`
+- `POST /prompts/{id}/render`
+
+Prompt fields include:
+
+- `id`
+- `name`
+- `description`
+- `version`
+- `category`
+- `status`
+- `variables`
+- `usageScope`
+- `relatedTools`
+- `updatedAt`
+- `usageCount`
+
+Prompt detail includes:
+
+- `prompt`
+- `templateContent`
+- `variables`
+- `version`
+- `status`
+- `usageScope`
+- `relatedTools`
+- `recentUsage`
+- `auditLogs`
+
+Render request:
+
+```json
+{
+  "requester": "admin",
+  "variables": {
+    "customer_id": "CUST-202405-000123",
+    "policy_doc": "policy-docs",
+    "locale": "zh-CN"
+  }
+}
+```
+
+Render response returns `valid`, `validationErrors`, `renderedPrompt`, and `renderedAt`. Missing variables return a structured validation result. Render is demo/sandbox behavior and records an `AuditLogEntry`.
+
+## Resources
+
 - `GET /resources`
+- `GET /resources/{id}`
+
+Resource fields include:
+
+- `id`
+- `name`
+- `type`
+- `description`
+- `status`
+- `tags`
+- `linkedTools`
+- `updatedAt`
+- `referenceCount`
+
+Resource detail includes:
+
+- `resource`
+- `contentSummary`
+- `schemaPreview`
+- `markdownPreview`
+- `linkedTools`
+- `relatedPrompts`
+- `recentReferences`
+- `auditLogs`
+
+Resource Library is context resource management for demo governance workflows, not an enterprise knowledge graph.
+
+## Dashboard / Audit
+
 - `GET /dashboard/stats`
 - `GET /audit-logs`
 

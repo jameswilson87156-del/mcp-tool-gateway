@@ -10,6 +10,8 @@ MCP Tool Gateway is an MCP-style enterprise Agent tool gateway for Tool / Prompt
 
 ![Trace Evidence](docs/images/trace-evidence.png)
 
+![Prompt Studio / Resource Library](docs/images/prompt-resource.png)
+
 ## Positioning
 
 This project is aimed at enterprise AI Agent tool access and governance. The default entry is the Tool Call Workbench, because it shows the core value chain directly:
@@ -36,6 +38,7 @@ Tool selection -> JSON parameters -> sandbox invocation -> response preview -> P
 - Tool Registry page for Tool, Schema, Provider, risk, version, approval, and permission scope inspection.
 - Human Review Center page for pending high-risk Tool Call review, approve/reject/request-changes actions, Trace Evidence, and Audit Log context.
 - Trace Evidence governance center with filters, Trace list, timeline drilldown, step evidence, JSON evidence, and Audit Evidence.
+- Prompt Studio / Resource Library workspace for Prompt variables, demo/sandbox render, Resource previews, Tool bindings, and usage/audit evidence.
 
 ## Boundaries
 
@@ -45,6 +48,8 @@ Tool selection -> JSON parameters -> sandbox invocation -> response preview -> P
 - `db.query.readonly` only allows local demo `SELECT` style requests and blocks dangerous SQL keywords.
 - Demo data must not be treated as real enterprise data.
 - Human Review is an explicit approval loop; this project does not claim unattended production execution.
+- Prompt render is demo/sandbox behavior.
+- Resource Library is context resource management, not an enterprise knowledge graph.
 
 ## Design References
 
@@ -88,6 +93,9 @@ The frontend calls `http://localhost:8080/api` first. If the backend is unavaila
 - `POST /api/reviews/{id}/reject`
 - `POST /api/reviews/{id}/request-changes`
 - `GET /api/prompts`
+- `GET /api/prompts/{id}`
+- `POST /api/prompts/{id}/render`
 - `GET /api/resources`
+- `GET /api/resources/{id}`
 - `GET /api/dashboard/stats`
 - `GET /api/audit-logs`

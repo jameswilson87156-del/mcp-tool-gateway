@@ -45,6 +45,12 @@ Trace center endpoints:
 
 The frontend uses backend data first. If the backend is unavailable, the page falls back to the centralized demo data in `frontend/src/data/demo.ts` and clearly marks the fallback source.
 
+## P4 Prompt / Resource Audit Notes
+
+Prompt render actions record `AuditLogEntry` records with `prompt.render.success` or `prompt.render.validation_error`.
+
+Resource detail pages surface related audit evidence and recent reference summaries, but Resource Library is context resource management only. It is not an enterprise knowledge graph or a production data lineage system.
+
 ## P2 Review Actions
 
 Human Review Center calls the backend review endpoints directly:

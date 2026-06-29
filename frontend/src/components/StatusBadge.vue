@@ -12,7 +12,11 @@ const label: Record<string, string> = {
   APPROVED: '已批准',
   REJECTED: '已拒绝',
   CHANGES_REQUESTED: '需补充',
-  DRAFT: '草稿'
+  DRAFT: '草稿',
+  ACTIVE: '启用',
+  PUBLISHED: '已发布',
+  SYNCED: '已同步',
+  ARCHIVED: '已归档'
 }
 </script>
 

@@ -10,6 +10,7 @@ MCP Tool Gateway P1 is a runnable demo project with:
 - Real browser screenshot targets under `docs/images`.
 - P2 Tool Registry and Human Review Center pages.
 - P3 Trace Evidence governance center.
+- P4 Prompt Studio / Resource Library workspace.
 
 ## Visual Direction
 
@@ -41,4 +42,12 @@ Default entry is B2 Tool Call Workbench, not a traditional KPI dashboard. Keep t
 - `GET /api/traces` supports keyword, status, risk level, review requirement, and Tool name filtering in memory.
 - `GET /api/traces/{traceId}` returns Tool Call context, Tool Schema summary, JSON evidence, Permission Result, review decision, TraceEvent timeline, and related AuditLogEntry records.
 - The frontend falls back to centralized demo Trace data only when the backend is unavailable and labels that state.
-- Remaining full page direction is Prompt Studio / Resource Library.
+
+## P4 Notes
+
+- `Prompt Studio / Resource Library` is a real page shared by the `提示词工作室` and `资源中心` navigation entries.
+- `GET /api/prompts`, `GET /api/prompts/{id}`, and `POST /api/prompts/{id}/render` support Prompt list, detail, and demo/sandbox render.
+- Missing Prompt variables return structured validation errors instead of silently rendering.
+- `GET /api/resources` and `GET /api/resources/{id}` support Resource list/detail, previews, linked Tools, related Prompts, and recent reference summaries.
+- Prompt render records `AuditLogEntry`; Resource Library remains context resource management, not an enterprise knowledge graph.
+- Remaining work is persistence, edit/save flows, pagination, and stricter RBAC policy modeling.

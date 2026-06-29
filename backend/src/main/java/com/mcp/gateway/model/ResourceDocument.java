@@ -4,12 +4,17 @@ import java.util.List;
 
 public record ResourceDocument(
         String id,
-        String title,
+        String name,
         String type,
-        String environment,
-        String owner,
-        RiskLevel riskLevel,
+        String description,
+        String status,
         List<String> tags,
-        List<String> permissionScopes
+        List<String> linkedTools,
+        String updatedAt,
+        int referenceCount,
+        String contentSummary,
+        String schemaPreview,
+        String markdownPreview,
+        List<String> relatedPrompts
 ) {
 }

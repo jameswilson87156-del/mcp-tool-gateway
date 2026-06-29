@@ -1,6 +1,11 @@
 import type {
   AuditLogEntry,
   DashboardStats,
+  PromptDetail,
+  PromptRenderResponse,
+  PromptTemplate,
+  ResourceDetail,
+  ResourceDocument,
   ToolCallRecord,
   ToolCallReview,
   ToolDefinition,
@@ -103,6 +108,140 @@ export const demoAuditLogs: AuditLogEntry[] = [
     timestamp: now()
   }
 ]
+
+export const demoPrompts: PromptTemplate[] = [
+  {
+    id: 'prompt_customer_summary',
+    name: 'customer-support.summary',
+    description: '根据客户、政策文档和区域语言生成结构化客服摘要。',
+    version: 'v1.2.0',
+    category: 'Customer Support',
+    status: 'ACTIVE',
+    variables: ['customer_id', 'policy_doc', 'locale'],
+    usageScope: '客服 Agent 可读，绑定 CRM 与 policy Resource',
+    relatedTools: ['crm.customer.search', 'ticket.search'],
+    updatedAt: now(),
+    usageCount: 42,
+    templateContent: `你是企业客服 Agent。请基于客户 {{customer_id}}、政策资料 {{policy_doc}}，使用 {{locale}} 输出：
+1. 客户背景摘要
+2. 可能适用的政策边界
+3. 下一步 Tool 调用建议
+保持审计友好，不要编造未提供事实。`
+  },
+  {
+    id: 'prompt_invoice_review',
+    name: 'finance.invoice.review',
+    description: '检查发票字段并标注需要 Human Review 的审查原因。',
+    version: 'v1.1.0',
+    category: 'Finance Governance',
+    status: 'DRAFT',
+    variables: ['invoice_id', 'vendor', 'amount'],
+    usageScope: '财务审查 demo，仅用于 sandbox 渲染',
+    relatedTools: ['db.query.readonly'],
+    updatedAt: now(),
+    usageCount: 8,
+    templateContent: `请审查发票 {{invoice_id}}，供应商 {{vendor}}，金额 {{amount}}。
+输出字段完整性、风险说明、是否需要 Human Review。
+仅基于输入变量判断，不访问真实财务系统。`
+  }
+]
+
+export const demoResources: ResourceDocument[] = [
+  {
+    id: 'res_policy_docs',
+    name: 'policy-docs',
+    type: 'DOCUMENT',
+    description: '客服政策文档摘要，用于回答客户服务边界和升级条件。',
+    status: 'PUBLISHED',
+    tags: ['policy', 'customer-support'],
+    linkedTools: ['crm.customer.search', 'ticket.search'],
+    updatedAt: now(),
+    referenceCount: 27,
+    contentSummary: '包含退款、升级、企业支持 SLA、区域差异等 demo 政策摘要。',
+    schemaPreview: '',
+    markdownPreview: `## 客服政策摘要
+- 高价值客户问题优先进入 Human Review。
+- 涉及退款、合同、隐私字段时需要审计记录。
+- Agent 只能引用 Resource 摘要，不代表真实企业政策。`,
+    relatedPrompts: ['prompt_customer_summary']
+  },
+  {
+    id: 'res_customer_schema',
+    name: 'customer-db-schema',
+    type: 'DB_SCHEMA',
+    description: 'CRM 客户查询的字段说明和只读访问边界。',
+    status: 'SYNCED',
+    tags: ['crm', 'schema', 'readonly'],
+    linkedTools: ['crm.customer.search', 'db.query.readonly'],
+    updatedAt: now(),
+    referenceCount: 15,
+    contentSummary: '描述 demo_customers 表的只读字段、脱敏约束和 local-rule fallback。',
+    schemaPreview: `{
+  "table": "demo_customers",
+  "readonly": true,
+  "fields": ["customer_id", "name", "region", "status"],
+  "blocked": ["insert", "update", "delete", "drop"]
+}`,
+    markdownPreview: '',
+    relatedPrompts: ['prompt_customer_summary', 'prompt_invoice_review']
+  }
+]
+
+export const demoPromptDetail: PromptDetail = {
+  prompt: demoPrompts[0],
+  templateContent: demoPrompts[0].templateContent,
+  variables: demoPrompts[0].variables,
+  version: demoPrompts[0].version,
+  status: demoPrompts[0].status,
+  usageScope: demoPrompts[0].usageScope,
+  relatedTools: demoPrompts[0].relatedTools,
+  recentUsage: [
+    { tool: 'crm.customer.search', actor: 'admin', result: 'demo/sandbox', timestamp: now() },
+    { tool: 'ticket.search', actor: 'agent.builder', result: 'context attached', timestamp: now() }
+  ],
+  auditLogs: demoAuditLogs
+}
+
+export const demoResourceDetail: ResourceDetail = {
+  resource: demoResources[0],
+  contentSummary: demoResources[0].contentSummary,
+  schemaPreview: demoResources[0].schemaPreview,
+  markdownPreview: demoResources[0].markdownPreview,
+  linkedTools: demoResources[0].linkedTools,
+  relatedPrompts: demoResources[0].relatedPrompts,
+  recentReferences: [
+    { tool: 'crm.customer.search', traceId: 'trace_demo_reference', result: 'context attached', timestamp: now() },
+    { tool: 'ticket.search', traceId: 'trace_demo_ticket', result: 'policy cited', timestamp: now() }
+  ],
+  auditLogs: demoAuditLogs
+}
+
+export function demoPromptRender(promptId: string, variables: Record<string, unknown>): PromptRenderResponse {
+  const prompt = demoPrompts.find((item) => item.id === promptId) ?? demoPrompts[0]
+  const missing = prompt.variables.filter((variable) => variables[variable] === undefined || variables[variable] === null || String(variables[variable]).trim() === '')
+  if (missing.length > 0) {
+    return {
+      promptId: prompt.id,
+      renderedPrompt: '',
+      valid: false,
+      validationErrors: missing.map((variable) => `缺少变量: ${variable}`),
+      variables,
+      renderedAt: now()
+    }
+  }
+  const renderedPrompt = prompt.variables.reduce(
+    (content, variable) => content.split(`{{${variable}}}`).join(String(variables[variable])),
+    prompt.templateContent
+  )
+  return {
+    promptId: prompt.id,
+    renderedPrompt,
+    valid: true,
+    validationErrors: [],
+    variables,
+    renderedAt: now()
+  }
+}
 
 export const demoTraceSummaries: TraceSummary[] = [
   {

@@ -5,11 +5,15 @@ import java.util.List;
 public record PromptTemplate(
         String id,
         String name,
+        String description,
         String version,
-        String owner,
-        RiskLevel riskLevel,
+        String category,
+        String status,
         List<String> variables,
-        String systemInstruction,
-        String status
+        String usageScope,
+        List<String> relatedTools,
+        String updatedAt,
+        int usageCount,
+        String templateContent
 ) {
 }

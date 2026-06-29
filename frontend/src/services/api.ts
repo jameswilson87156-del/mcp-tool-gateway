@@ -1,7 +1,26 @@
-import { demoAuditLogs, demoCall, demoReviews, demoStats, demoTools, demoTrace, demoTraceDetail, demoTraceSummaries } from '../data/demo'
+import {
+  demoAuditLogs,
+  demoCall,
+  demoPromptDetail,
+  demoPromptRender,
+  demoPrompts,
+  demoResourceDetail,
+  demoResources,
+  demoReviews,
+  demoStats,
+  demoTools,
+  demoTrace,
+  demoTraceDetail,
+  demoTraceSummaries
+} from '../data/demo'
 import type {
   AuditLogEntry,
   DashboardStats,
+  PromptDetail,
+  PromptRenderResponse,
+  PromptTemplate,
+  ResourceDetail,
+  ResourceDocument,
   ToolCallRecord,
   ToolCallReview,
   ToolDefinition,
@@ -97,6 +116,32 @@ export function getTraceDetail(traceId: string) {
   return request<TraceDetail>(`/traces/${traceId}`)
 }
 
+export function getPrompts() {
+  return request<PromptTemplate[]>('/prompts')
+}
+
+export function getPromptDetail(promptId: string) {
+  return request<PromptDetail>(`/prompts/${promptId}`)
+}
+
+export function renderPrompt(promptId: string, variables: Record<string, unknown>) {
+  return request<PromptRenderResponse>(`/prompts/${promptId}/render`, {
+    method: 'POST',
+    body: JSON.stringify({
+      requester: 'admin',
+      variables
+    })
+  })
+}
+
+export function getResources() {
+  return request<ResourceDocument[]>('/resources')
+}
+
+export function getResourceDetail(resourceId: string) {
+  return request<ResourceDetail>(`/resources/${resourceId}`)
+}
+
 function fallback<T>(path: string, init?: RequestInit): T {
   if (path === '/tools') {
     return demoTools as T
@@ -126,6 +171,34 @@ function fallback<T>(path: string, init?: RequestInit): T {
   }
   if (path === '/audit-logs') {
     return demoAuditLogs as T
+  }
+  if (path === '/prompts') {
+    return demoPrompts as T
+  }
+  if (path.includes('/prompts/') && path.includes('/render')) {
+    const body = init?.body ? JSON.parse(String(init.body)) : { variables: {} }
+    return demoPromptRender(path.split('/')[2] ?? demoPromptDetail.prompt.id, body.variables ?? {}) as T
+  }
+  if (path.startsWith('/prompts/')) {
+    const promptId = path.split('/')[2] ?? demoPromptDetail.prompt.id
+    const prompt = demoPrompts.find((item) => item.id === promptId) ?? demoPromptDetail.prompt
+    return { ...demoPromptDetail, prompt, templateContent: prompt.templateContent, variables: prompt.variables } as T
+  }
+  if (path === '/resources') {
+    return demoResources as T
+  }
+  if (path.startsWith('/resources/')) {
+    const resourceId = path.split('/')[2] ?? demoResourceDetail.resource.id
+    const resource = demoResources.find((item) => item.id === resourceId) ?? demoResourceDetail.resource
+    return {
+      ...demoResourceDetail,
+      resource,
+      contentSummary: resource.contentSummary,
+      schemaPreview: resource.schemaPreview,
+      markdownPreview: resource.markdownPreview,
+      linkedTools: resource.linkedTools,
+      relatedPrompts: resource.relatedPrompts
+    } as T
   }
   if (path.includes('/invoke')) {
     const body = init?.body ? JSON.parse(String(init.body)) : { parameters: {} }

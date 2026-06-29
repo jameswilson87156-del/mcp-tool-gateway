@@ -117,6 +117,75 @@ class ApiControllerTests {
     }
 
     @Test
+    void returnsPromptListDetailAndRenderResult() throws Exception {
+        mockMvc.perform(get("/api/prompts"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.id == 'prompt_customer_summary')]").exists())
+                .andExpect(jsonPath("$[0].description").exists())
+                .andExpect(jsonPath("$[0].usageScope").exists())
+                .andExpect(jsonPath("$[0].relatedTools").exists())
+                .andExpect(jsonPath("$[0].usageCount").exists());
+
+        mockMvc.perform(get("/api/prompts/prompt_customer_summary"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.prompt.id").value("prompt_customer_summary"))
+                .andExpect(jsonPath("$.templateContent").exists())
+                .andExpect(jsonPath("$.recentUsage").exists())
+                .andExpect(jsonPath("$.auditLogs").exists());
+
+        mockMvc.perform(post("/api/prompts/prompt_customer_summary/render")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "requester": "admin",
+                                  "variables": {
+                                    "customer_id": "CUST-202405-000123",
+                                    "policy_doc": "policy-docs",
+                                    "locale": "zh-CN"
+                                  }
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.valid").value(true))
+                .andExpect(jsonPath("$.renderedPrompt").value(org.hamcrest.Matchers.containsString("CUST-202405-000123")));
+    }
+
+    @Test
+    void promptRenderReturnsValidationErrorsForMissingVariables() throws Exception {
+        mockMvc.perform(post("/api/prompts/prompt_customer_summary/render")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "requester": "admin",
+                                  "variables": {
+                                    "customer_id": "CUST-202405-000123"
+                                  }
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.valid").value(false))
+                .andExpect(jsonPath("$.validationErrors").isArray())
+                .andExpect(jsonPath("$.validationErrors[0]").exists());
+    }
+
+    @Test
+    void returnsResourceListAndDetail() throws Exception {
+        mockMvc.perform(get("/api/resources"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.id == 'res_policy_docs')]").exists())
+                .andExpect(jsonPath("$[0].type").exists())
+                .andExpect(jsonPath("$[0].linkedTools").exists())
+                .andExpect(jsonPath("$[0].referenceCount").exists());
+
+        mockMvc.perform(get("/api/resources/res_customer_schema"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.resource.id").value("res_customer_schema"))
+                .andExpect(jsonPath("$.contentSummary").exists())
+                .andExpect(jsonPath("$.schemaPreview").exists())
+                .andExpect(jsonPath("$.recentReferences").exists());
+    }
+
+    @Test
     void listsTraceSummariesWithFilters() throws Exception {
         mockMvc.perform(get("/api/traces")
                         .param("riskLevel", "HIGH")

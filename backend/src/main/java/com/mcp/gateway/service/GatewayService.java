@@ -1,6 +1,7 @@
 package com.mcp.gateway.service;
 
 import com.mcp.gateway.api.InvokeRequest;
+import com.mcp.gateway.api.PromptRenderRequest;
 import com.mcp.gateway.api.ReviewRequest;
 import com.mcp.gateway.model.*;
 import org.springframework.stereotype.Service;
@@ -245,8 +246,82 @@ public class GatewayService {
         return List.copyOf(prompts);
     }
 
+    public PromptDetail getPromptDetail(String id) {
+        var prompt = requirePrompt(id);
+        return new PromptDetail(
+                prompt,
+                prompt.templateContent(),
+                prompt.variables(),
+                prompt.version(),
+                prompt.status(),
+                prompt.usageScope(),
+                prompt.relatedTools(),
+                recentPromptUsage(prompt),
+                relatedContentAuditLogs("PromptTemplate", prompt.id())
+        );
+    }
+
+    public PromptRenderResponse renderPrompt(String id, PromptRenderRequest request) {
+        var prompt = requirePrompt(id);
+        var variables = request.variables() == null ? Map.<String, Object>of() : request.variables();
+        var missingVariables = prompt.variables().stream()
+                .filter(variable -> !variables.containsKey(variable) || variables.get(variable) == null || String.valueOf(variables.get(variable)).isBlank())
+                .toList();
+        var actor = request.requester() == null || request.requester().isBlank() ? demoAdmin.username() : request.requester();
+        var now = Instant.now();
+
+        if (!missingVariables.isEmpty()) {
+            audit(actor, "prompt.render.validation_error", "PromptTemplate", prompt.id(), Map.of("missingVariables", missingVariables));
+            return new PromptRenderResponse(
+                    prompt.id(),
+                    "",
+                    false,
+                    missingVariables.stream().map(variable -> "缺少变量: " + variable).toList(),
+                    variables,
+                    now.toString()
+            );
+        }
+
+        var rendered = prompt.templateContent();
+        for (String variable : prompt.variables()) {
+            var value = String.valueOf(variables.get(variable));
+            rendered = rendered.replace("{{" + variable + "}}", value);
+        }
+        var updatedPrompt = new PromptTemplate(
+                prompt.id(),
+                prompt.name(),
+                prompt.description(),
+                prompt.version(),
+                prompt.category(),
+                prompt.status(),
+                prompt.variables(),
+                prompt.usageScope(),
+                prompt.relatedTools(),
+                now.toString(),
+                prompt.usageCount() + 1,
+                prompt.templateContent()
+        );
+        prompts.set(promptIndex(prompt.id()), updatedPrompt);
+        audit(actor, "prompt.render.success", "PromptTemplate", prompt.id(), Map.of("variables", variables.keySet(), "sandbox", true));
+        return new PromptRenderResponse(prompt.id(), rendered, true, List.of(), variables, now.toString());
+    }
+
     public List<ResourceDocument> listResources() {
         return List.copyOf(resources);
+    }
+
+    public ResourceDetail getResourceDetail(String id) {
+        var resource = requireResource(id);
+        return new ResourceDetail(
+                resource,
+                resource.contentSummary(),
+                resource.schemaPreview(),
+                resource.markdownPreview(),
+                resource.linkedTools(),
+                resource.relatedPrompts(),
+                recentResourceReferences(resource),
+                relatedContentAuditLogs("ResourceDocument", resource.id())
+        );
     }
 
     public List<AuditLogEntry> listAuditLogs() {
@@ -275,6 +350,29 @@ public class GatewayService {
 
     private ToolCallReview requireReview(String id) {
         return Optional.ofNullable(reviews.get(id)).orElseThrow(() -> new NoSuchElementException("Review not found: " + id));
+    }
+
+    private PromptTemplate requirePrompt(String id) {
+        return prompts.stream()
+                .filter(prompt -> prompt.id().equals(id))
+                .findFirst()
+                .orElseThrow(() -> new NoSuchElementException("Prompt not found: " + id));
+    }
+
+    private int promptIndex(String id) {
+        for (int i = 0; i < prompts.size(); i++) {
+            if (prompts.get(i).id().equals(id)) {
+                return i;
+            }
+        }
+        throw new NoSuchElementException("Prompt not found: " + id);
+    }
+
+    private ResourceDocument requireResource(String id) {
+        return resources.stream()
+                .filter(resource -> resource.id().equals(id))
+                .findFirst()
+                .orElseThrow(() -> new NoSuchElementException("Resource not found: " + id));
     }
 
     private void appendTrace(String callId, String step, CallStatus status, String message, String latency, Map<String, Object> evidence) {
@@ -396,6 +494,46 @@ public class GatewayService {
                 .toList();
     }
 
+    private List<AuditLogEntry> relatedContentAuditLogs(String targetType, String targetId) {
+        return auditLogs.stream()
+                .filter(log -> log.targetType().equals(targetType) && log.targetId().equals(targetId))
+                .sorted(Comparator.comparing(AuditLogEntry::timestamp).reversed())
+                .toList();
+    }
+
+    private List<Map<String, Object>> recentPromptUsage(PromptTemplate prompt) {
+        var usage = new ArrayList<Map<String, Object>>();
+        usage.add(Map.of(
+                "tool", prompt.relatedTools().isEmpty() ? "manual.render" : prompt.relatedTools().get(0),
+                "actor", "admin",
+                "result", "demo/sandbox",
+                "timestamp", prompt.updatedAt()
+        ));
+        relatedContentAuditLogs("PromptTemplate", prompt.id()).stream()
+                .filter(log -> log.action().startsWith("prompt.render"))
+                .limit(4)
+                .forEach(log -> usage.add(Map.of(
+                        "tool", "Prompt render",
+                        "actor", log.actor(),
+                        "result", log.action(),
+                        "timestamp", log.timestamp().toString()
+                )));
+        return usage;
+    }
+
+    private List<Map<String, Object>> recentResourceReferences(ResourceDocument resource) {
+        var references = new ArrayList<Map<String, Object>>();
+        for (String tool : resource.linkedTools()) {
+            references.add(Map.of(
+                    "tool", tool,
+                    "traceId", "trace_demo_reference",
+                    "result", "context attached",
+                    "timestamp", resource.updatedAt()
+            ));
+        }
+        return references;
+    }
+
     private ToolDefinition withRecentCallCount(ToolDefinition tool) {
         var count = (int) calls.values().stream().filter(call -> call.toolId().equals(tool.id())).count();
         return new ToolDefinition(
@@ -501,17 +639,90 @@ public class GatewayService {
     }
 
     private void seedPrompts() {
-        prompts.add(new PromptTemplate("prompt_customer_summary", "customer-support.summary", "v1.2.0", "客服平台组",
-                RiskLevel.MEDIUM, List.of("customer_id", "policy_doc", "locale"), "根据客户上下文生成结构化摘要。", "PUBLISHED"));
-        prompts.add(new PromptTemplate("prompt_invoice_review", "finance.invoice.review", "v1.1.0", "财务系统组",
-                RiskLevel.HIGH, List.of("invoice_id", "vendor", "amount"), "检查发票字段并标注审查原因。", "PENDING_REVIEW"));
+        var now = Instant.now().minusSeconds(2800).toString();
+        prompts.add(new PromptTemplate(
+                "prompt_customer_summary",
+                "customer-support.summary",
+                "根据客户、政策文档和区域语言生成结构化客服摘要。",
+                "v1.2.0",
+                "Customer Support",
+                "ACTIVE",
+                List.of("customer_id", "policy_doc", "locale"),
+                "客服 Agent 可读，绑定 CRM 与 policy Resource",
+                List.of("crm.customer.search", "ticket.search"),
+                now,
+                42,
+                """
+                        你是企业客服 Agent。请基于客户 {{customer_id}}、政策资料 {{policy_doc}}，使用 {{locale}} 输出：
+                        1. 客户背景摘要
+                        2. 可能适用的政策边界
+                        3. 下一步 Tool 调用建议
+                        保持审计友好，不要编造未提供事实。
+                        """
+        ));
+        prompts.add(new PromptTemplate(
+                "prompt_invoice_review",
+                "finance.invoice.review",
+                "检查发票字段并标注需要 Human Review 的审查原因。",
+                "v1.1.0",
+                "Finance Governance",
+                "DRAFT",
+                List.of("invoice_id", "vendor", "amount"),
+                "财务审查 demo，仅用于 sandbox 渲染",
+                List.of("db.query.readonly"),
+                Instant.now().minusSeconds(5400).toString(),
+                8,
+                """
+                        请审查发票 {{invoice_id}}，供应商 {{vendor}}，金额 {{amount}}。
+                        输出字段完整性、风险说明、是否需要 Human Review。
+                        仅基于输入变量判断，不访问真实财务系统。
+                        """
+        ));
     }
 
     private void seedResources() {
-        resources.add(new ResourceDocument("res_policy_docs", "policy-docs", "Knowledge Base", "production", "知识平台组",
-                RiskLevel.MEDIUM, List.of("policy", "customer-support"), List.of("resource:policy:read")));
-        resources.add(new ResourceDocument("res_customer_knowledge", "customer-knowledge", "Vector Index", "production", "CRM 平台组",
-                RiskLevel.MEDIUM, List.of("crm", "customer"), List.of("resource:customer:read")));
+        resources.add(new ResourceDocument(
+                "res_policy_docs",
+                "policy-docs",
+                "DOCUMENT",
+                "客服政策文档摘要，用于回答客户服务边界和升级条件。",
+                "PUBLISHED",
+                List.of("policy", "customer-support"),
+                List.of("crm.customer.search", "ticket.search"),
+                Instant.now().minusSeconds(3600).toString(),
+                27,
+                "包含退款、升级、企业支持 SLA、区域差异等 demo 政策摘要。",
+                "",
+                """
+                        ## 客服政策摘要
+                        - 高价值客户问题优先进入 Human Review。
+                        - 涉及退款、合同、隐私字段时需要审计记录。
+                        - Agent 只能引用 Resource 摘要，不代表真实企业政策。
+                        """,
+                List.of("prompt_customer_summary")
+        ));
+        resources.add(new ResourceDocument(
+                "res_customer_schema",
+                "customer-db-schema",
+                "DB_SCHEMA",
+                "CRM 客户查询的字段说明和只读访问边界。",
+                "SYNCED",
+                List.of("crm", "schema", "readonly"),
+                List.of("crm.customer.search", "db.query.readonly"),
+                Instant.now().minusSeconds(7200).toString(),
+                15,
+                "描述 demo_customers 表的只读字段、脱敏约束和 local-rule fallback。",
+                """
+                        {
+                          "table": "demo_customers",
+                          "readonly": true,
+                          "fields": ["customer_id", "name", "region", "status"],
+                          "blocked": ["insert", "update", "delete", "drop"]
+                        }
+                        """,
+                "",
+                List.of("prompt_customer_summary", "prompt_invoice_review")
+        ));
     }
 
     private void seedPendingReview() {

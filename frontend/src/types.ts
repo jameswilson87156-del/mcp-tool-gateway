@@ -128,6 +128,73 @@ export interface AuditLogEntry {
   timestamp: string
 }
 
+export type PromptStatus = 'DRAFT' | 'ACTIVE' | 'ARCHIVED'
+export type ResourceStatus = 'DRAFT' | 'PUBLISHED' | 'SYNCED' | 'ARCHIVED'
+export type ResourceType = 'DOCUMENT' | 'API_SPEC' | 'DB_SCHEMA' | 'BUSINESS_RULE' | 'POLICY'
+
+export interface PromptTemplate {
+  id: string
+  name: string
+  description: string
+  version: string
+  category: string
+  status: PromptStatus
+  variables: string[]
+  usageScope: string
+  relatedTools: string[]
+  updatedAt: string
+  usageCount: number
+  templateContent: string
+}
+
+export interface PromptDetail {
+  prompt: PromptTemplate
+  templateContent: string
+  variables: string[]
+  version: string
+  status: PromptStatus
+  usageScope: string
+  relatedTools: string[]
+  recentUsage: Array<Record<string, unknown>>
+  auditLogs: AuditLogEntry[]
+}
+
+export interface PromptRenderResponse {
+  promptId: string
+  renderedPrompt: string
+  valid: boolean
+  validationErrors: string[]
+  variables: Record<string, unknown>
+  renderedAt: string
+}
+
+export interface ResourceDocument {
+  id: string
+  name: string
+  type: ResourceType
+  description: string
+  status: ResourceStatus
+  tags: string[]
+  linkedTools: string[]
+  updatedAt: string
+  referenceCount: number
+  contentSummary: string
+  schemaPreview: string
+  markdownPreview: string
+  relatedPrompts: string[]
+}
+
+export interface ResourceDetail {
+  resource: ResourceDocument
+  contentSummary: string
+  schemaPreview: string
+  markdownPreview: string
+  linkedTools: string[]
+  relatedPrompts: string[]
+  recentReferences: Array<Record<string, unknown>>
+  auditLogs: AuditLogEntry[]
+}
+
 export interface DashboardStats {
   toolCount: number
   promptCount: number

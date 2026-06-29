@@ -14,7 +14,7 @@ This file is updated after local verification.
 
 Date: 2026-06-29
 
-- `mvn test`: passed. 10 tests, 0 failures, 0 errors.
+- `mvn test`: passed. 13 tests, 0 failures, 0 errors.
 - `npm run build`: passed. `vue-tsc --noEmit` and `vite build` completed.
 - `npm run screenshots`: passed. The script started the Spring Boot backend and Vite frontend, then captured real browser screenshots.
 - `git diff --check`: passed. Git reported Windows line-ending normalization warnings only.
@@ -24,10 +24,12 @@ Date: 2026-06-29
   - `docs/images/tool-registry.png`
   - `docs/images/human-review-center.png`
   - `docs/images/trace-evidence.png`
+  - `docs/images/prompt-resource.png`
   - `docs/images/large/mcp-tool-workbench.png`
   - `docs/images/large/tool-registry.png`
   - `docs/images/large/human-review-center.png`
   - `docs/images/large/trace-evidence.png`
+  - `docs/images/large/prompt-resource.png`
 
 ## Visual Check
 
@@ -40,3 +42,4 @@ The captured page follows the B2 Tool Call Workbench direction:
 - The README screenshot path uses `docs/images`, not `docs/design/concepts`.
 - P2 Tool Registry and Human Review Center are implemented as real Vue/CSS pages, not concept-image backgrounds.
 - P3 Trace Evidence is implemented as a real Vue/CSS governance evidence center with filters, timeline drilldown, step evidence, JSON evidence, and Audit Evidence.
+- P4 Prompt Studio / Resource Library is implemented as a real Vue/CSS developer configuration workspace with backend-backed Prompt render, Resource detail, Tool Binding, and usage/audit evidence.
