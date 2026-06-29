@@ -222,6 +222,83 @@ class ApiControllerTests {
     }
 
     @Test
+    void createsUpdatesPublishesAndArchivesPromptWithAuditLogs() throws Exception {
+        var auditCount = countRows("audit_logs");
+        var created = mockMvc.perform(post("/api/prompts")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "ops.incident.brief",
+                                  "description": "生成事件响应摘要",
+                                  "category": "Operations",
+                                  "templateContent": "请基于 {{incident_id}} 输出 {{locale}} 事件摘要。",
+                                  "variables": ["incident_id", "locale"],
+                                  "usageScope": "运维 Agent demo",
+                                  "relatedTools": ["ticket.search"]
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.prompt.status").value("DRAFT"))
+                .andExpect(jsonPath("$.prompt.id").exists())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        var promptId = extractJsonString(created, "id");
+
+        mockMvc.perform(put("/api/prompts/{id}", promptId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "ops.incident.brief.v2",
+                                  "description": "更新事件响应摘要",
+                                  "category": "Operations",
+                                  "templateContent": "请基于 {{incident_id}} 输出 {{locale}} 事件摘要和下一步 Tool。",
+                                  "variables": ["incident_id", "locale"],
+                                  "usageScope": "运维 Agent demo",
+                                  "relatedTools": ["ticket.search"],
+                                  "status": "DRAFT"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.prompt.name").value("ops.incident.brief.v2"));
+
+        mockMvc.perform(post("/api/prompts/{id}/publish", promptId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.prompt.status").value("ACTIVE"));
+
+        mockMvc.perform(post("/api/prompts/{id}/archive", promptId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.prompt.status").value("ARCHIVED"));
+
+        org.assertj.core.api.Assertions.assertThat(countRows("audit_logs")).isGreaterThanOrEqualTo(auditCount + 4);
+    }
+
+    @Test
+    void publishPromptReturnsValidationErrorForInvalidPrompt() throws Exception {
+        var created = mockMvc.perform(post("/api/prompts")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "invalid.prompt",
+                                  "description": "缺少模板",
+                                  "category": "Operations",
+                                  "variables": ["incident_id"]
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        var promptId = extractJsonString(created, "id");
+
+        mockMvc.perform(post("/api/prompts/{id}/publish", promptId))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.type").value("validation_error"));
+    }
+
+    @Test
     void returnsResourceListAndDetail() throws Exception {
         mockMvc.perform(get("/api/resources"))
                 .andExpect(status().isOk())
@@ -236,6 +313,78 @@ class ApiControllerTests {
                 .andExpect(jsonPath("$.contentSummary").exists())
                 .andExpect(jsonPath("$.schemaPreview").exists())
                 .andExpect(jsonPath("$.recentReferences").exists());
+    }
+
+    @Test
+    void createsUpdatesPublishesAndArchivesResourceWithAuditLogs() throws Exception {
+        var auditCount = countRows("audit_logs");
+        var created = mockMvc.perform(post("/api/resources")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "incident-runbook",
+                                  "type": "DOCUMENT",
+                                  "description": "事件响应 runbook",
+                                  "contentSummary": "包含升级、审批和 Trace Evidence 要点。",
+                                  "markdownPreview": "## Runbook",
+                                  "tags": ["ops", "runbook"],
+                                  "linkedTools": ["ticket.search"],
+                                  "relatedPrompts": ["ops.incident.brief"]
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.resource.status").value("DRAFT"))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        var resourceId = extractJsonString(created, "id");
+
+        mockMvc.perform(put("/api/resources/{id}", resourceId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "incident-runbook-v2",
+                                  "type": "DOCUMENT",
+                                  "description": "更新事件响应 runbook",
+                                  "contentSummary": "包含升级、审批、Trace Evidence 和 Audit Log 要点。",
+                                  "markdownPreview": "## Runbook v2",
+                                  "tags": ["ops", "runbook"],
+                                  "linkedTools": ["ticket.search"],
+                                  "relatedPrompts": ["ops.incident.brief"],
+                                  "status": "DRAFT"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.resource.name").value("incident-runbook-v2"));
+
+        mockMvc.perform(post("/api/resources/{id}/publish", resourceId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.resource.status").value("PUBLISHED"));
+
+        mockMvc.perform(post("/api/resources/{id}/archive", resourceId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.resource.status").value("ARCHIVED"));
+
+        org.assertj.core.api.Assertions.assertThat(countRows("audit_logs")).isGreaterThanOrEqualTo(auditCount + 4);
+    }
+
+    @Test
+    void missingPromptAndResourceReturnStructured404() throws Exception {
+        mockMvc.perform(put("/api/prompts/not_exists")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "missing",
+                                  "templateContent": "{{x}}"
+                                }
+                                """))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error").exists());
+
+        mockMvc.perform(post("/api/resources/not_exists/archive"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error").exists());
     }
 
     @Test
@@ -293,5 +442,9 @@ class ApiControllerTests {
     private long countRows(String table) {
         Long count = jdbc.queryForObject("select count(*) from " + table, Long.class);
         return count == null ? 0 : count;
+    }
+
+    private String extractJsonString(String json, String field) {
+        return json.replaceAll("(?s).*?\\\"" + field + "\\\"\\s*:\\s*\\\"([^\\\"]+)\\\".*", "$1");
     }
 }

@@ -12,6 +12,7 @@ public record PromptDetail(
         String usageScope,
         List<String> relatedTools,
         List<Map<String, Object>> recentUsage,
-        List<AuditLogEntry> auditLogs
+        List<AuditLogEntry> auditLogs,
+        List<String> warnings
 ) {
 }

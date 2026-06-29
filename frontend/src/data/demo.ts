@@ -199,7 +199,8 @@ export const demoPromptDetail: PromptDetail = {
     { tool: 'crm.customer.search', actor: 'admin', result: 'demo/sandbox', timestamp: now() },
     { tool: 'ticket.search', actor: 'agent.builder', result: 'context attached', timestamp: now() }
   ],
-  auditLogs: demoAuditLogs
+  auditLogs: demoAuditLogs,
+  warnings: []
 }
 
 export const demoResourceDetail: ResourceDetail = {

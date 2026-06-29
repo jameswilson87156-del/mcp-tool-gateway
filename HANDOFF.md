@@ -12,6 +12,7 @@ MCP Tool Gateway P1 is a runnable demo project with:
 - P3 Trace Evidence governance center.
 - P4 Prompt Studio / Resource Library workspace.
 - P5A H2 + JdbcTemplate persistence layer.
+- P5B Prompt / Resource editing workflow.
 
 ## Visual Direction
 
@@ -61,4 +62,13 @@ Default entry is B2 Tool Call Workbench, not a traditional KPI dashboard. Keep t
 - Startup uses seed-on-empty for P1-P4-compatible demo data.
 - Existing API response shapes are preserved; list endpoints are not paginated yet.
 - `.data/`, `*.mv.db`, and `*.trace.db` are ignored and must not be committed.
-- Remaining work is Prompt/Resource edit-save flows, pagination, and stricter RBAC policy modeling.
+- Remaining work is pagination, optional local H2 file profile documentation, and stricter RBAC policy modeling.
+
+## P5B Notes
+
+- `POST /api/prompts`, `PUT /api/prompts/{id}`, `POST /api/prompts/{id}/publish`, and `POST /api/prompts/{id}/archive` support Prompt create/update/publish/archive.
+- `POST /api/resources`, `PUT /api/resources/{id}`, `POST /api/resources/{id}/publish`, and `POST /api/resources/{id}/archive` support Resource create/update/publish/archive.
+- Write operations persist through the existing H2 + JdbcTemplate repositories and record `AuditLogEntry` rows.
+- The Prompt / Resource frontend uses action bars, right-side edit drawers, save status feedback, and validation messages instead of a plain CRUD table.
+- Prompt publish sets status to `ACTIVE`; Resource publish sets status to `PUBLISHED`; archive sets status to `ARCHIVED`.
+- Prompt / Resource editing remains a local demo governance workflow, not a real enterprise configuration center.

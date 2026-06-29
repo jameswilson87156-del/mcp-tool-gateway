@@ -41,6 +41,7 @@ Tool selection -> JSON parameters -> sandbox invocation -> response preview -> P
 - Trace Evidence governance center with filters, Trace list, timeline drilldown, step evidence, JSON evidence, and Audit Evidence.
 - Prompt Studio / Resource Library workspace for Prompt variables, demo/sandbox render, Resource previews, Tool bindings, and usage/audit evidence.
 - P5A H2 + JdbcTemplate persistence for Tools, Prompts, Resources, Tool Calls, Reviews, Trace Events, Audit Logs, demo users, and role policy demo rows.
+- P5B Prompt / Resource editing workflow with create, update, draft, publish, archive, validation feedback, and Audit Log evidence.
 
 ## Boundaries
 
@@ -53,6 +54,7 @@ Tool selection -> JSON parameters -> sandbox invocation -> response preview -> P
 - Prompt render is demo/sandbox behavior.
 - Resource Library is context resource management, not an enterprise knowledge graph.
 - H2 persistence is a local demo persistence layer, not a production database architecture.
+- Prompt / Resource editing is a local demo governance workflow, not a real enterprise configuration center.
 
 ## Design References
 
@@ -98,9 +100,17 @@ By default the backend uses H2 in-memory storage and seeds demo data when the ta
 - `POST /api/reviews/{id}/reject`
 - `POST /api/reviews/{id}/request-changes`
 - `GET /api/prompts`
+- `POST /api/prompts`
 - `GET /api/prompts/{id}`
+- `PUT /api/prompts/{id}`
+- `POST /api/prompts/{id}/publish`
+- `POST /api/prompts/{id}/archive`
 - `POST /api/prompts/{id}/render`
 - `GET /api/resources`
+- `POST /api/resources`
 - `GET /api/resources/{id}`
+- `PUT /api/resources/{id}`
+- `POST /api/resources/{id}/publish`
+- `POST /api/resources/{id}/archive`
 - `GET /api/dashboard/stats`
 - `GET /api/audit-logs`

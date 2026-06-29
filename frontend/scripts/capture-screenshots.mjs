@@ -70,6 +70,8 @@ async function capturePages(page, outputDir) {
   await page.waitForTimeout(500)
   await page.getByRole('button', { name: /Render Prompt/ }).click()
   await page.waitForTimeout(700)
+  await page.getByRole('button', { name: /New Prompt/ }).click()
+  await page.waitForTimeout(400)
   await page.screenshot({ path: resolve(outputDir, 'prompt-resource.png'), fullPage: true })
 }
 

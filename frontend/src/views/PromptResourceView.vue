@@ -1,21 +1,44 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import BindingSummaryPanel from '../components/BindingSummaryPanel.vue'
+import PromptActionBar from '../components/PromptActionBar.vue'
+import PromptEditDrawer from '../components/PromptEditDrawer.vue'
 import PromptEditorPanel from '../components/PromptEditorPanel.vue'
 import PromptListPanel from '../components/PromptListPanel.vue'
 import PromptRenderPreview from '../components/PromptRenderPreview.vue'
 import PromptResourceActivity from '../components/PromptResourceActivity.vue'
 import PromptVariablePanel from '../components/PromptVariablePanel.vue'
+import ResourceActionBar from '../components/ResourceActionBar.vue'
 import ResourceDetailPanel from '../components/ResourceDetailPanel.vue'
+import ResourceEditDrawer from '../components/ResourceEditDrawer.vue'
 import ResourceListPanel from '../components/ResourceListPanel.vue'
 import ResourcePreviewPanel from '../components/ResourcePreviewPanel.vue'
-import { getPromptDetail, getPrompts, getResourceDetail, getResources, getTools, renderPrompt } from '../services/api'
+import SaveStatusBanner from '../components/SaveStatusBanner.vue'
+import {
+  ApiRequestError,
+  archivePrompt,
+  archiveResource,
+  createPrompt,
+  createResource,
+  getPromptDetail,
+  getPrompts,
+  getResourceDetail,
+  getResources,
+  getTools,
+  publishPrompt,
+  publishResource,
+  renderPrompt,
+  updatePrompt,
+  updateResource
+} from '../services/api'
 import type {
   PromptDetail,
   PromptRenderResponse,
   PromptTemplate,
+  PromptUpsertInput,
   ResourceDetail,
   ResourceDocument,
+  ResourceUpsertInput,
   ToolDefinition
 } from '../types'
 
@@ -36,6 +59,14 @@ const source = ref<'api' | 'demo-fallback'>('demo-fallback')
 const renderSource = ref<'api' | 'demo-fallback'>('demo-fallback')
 const loading = ref(false)
 const rendering = ref(false)
+const saving = ref(false)
+const saveMessage = ref('')
+const saveTone = ref<'success' | 'error' | 'info'>('info')
+const editErrors = ref<string[]>([])
+const promptDrawerOpen = ref(false)
+const promptDrawerMode = ref<'create' | 'edit'>('edit')
+const resourceDrawerOpen = ref(false)
+const resourceDrawerMode = ref<'create' | 'edit'>('edit')
 
 const selectedPromptId = computed(() => selectedPrompt.value?.id ?? '')
 const selectedResourceId = computed(() => selectedResource.value?.id ?? '')
@@ -62,6 +93,28 @@ async function loadWorkspace() {
     await Promise.all([loadPromptDetail(), loadResourceDetail()])
   } finally {
     loading.value = false
+  }
+}
+
+async function refreshPromptSelection(promptId: string) {
+  const promptResult = await getPrompts()
+  prompts.value = promptResult.data
+  selectedPrompt.value = prompts.value.find((prompt) => prompt.id === promptId) ?? prompts.value[0] ?? null
+  if (selectedPrompt.value) {
+    const detailResult = await getPromptDetail(selectedPrompt.value.id)
+    promptDetail.value = detailResult.data
+    source.value = detailResult.source === 'demo-fallback' ? 'demo-fallback' : source.value
+  }
+}
+
+async function refreshResourceSelection(resourceId: string) {
+  const resourceResult = await getResources()
+  resources.value = resourceResult.data
+  selectedResource.value = resources.value.find((resource) => resource.id === resourceId) ?? resources.value[0] ?? null
+  if (selectedResource.value) {
+    const detailResult = await getResourceDetail(selectedResource.value.id)
+    resourceDetail.value = detailResult.data
+    source.value = detailResult.source === 'demo-fallback' ? 'demo-fallback' : source.value
   }
 }
 
@@ -122,6 +175,140 @@ async function handleRender() {
   }
 }
 
+function openNewPrompt() {
+  promptDrawerMode.value = 'create'
+  editErrors.value = []
+  promptDrawerOpen.value = true
+}
+
+function openEditPrompt() {
+  promptDrawerMode.value = 'edit'
+  editErrors.value = []
+  promptDrawerOpen.value = true
+}
+
+async function savePromptDraft(payload: PromptUpsertInput) {
+  saving.value = true
+  editErrors.value = []
+  try {
+    const result = promptDrawerMode.value === 'create'
+      ? await createPrompt(payload)
+      : await updatePrompt(selectedPrompt.value?.id ?? '', payload)
+    promptDetail.value = result.data
+    selectedPrompt.value = result.data.prompt
+    source.value = result.source
+    await refreshPromptSelection(result.data.prompt.id)
+    promptDrawerOpen.value = false
+    setSaveStatus('Prompt 草稿已保存。', 'success')
+  } catch (error) {
+    editErrors.value = [messageFromError(error)]
+    setSaveStatus('Prompt 保存失败。', 'error')
+  } finally {
+    saving.value = false
+  }
+}
+
+async function handlePublishPrompt() {
+  if (!selectedPrompt.value) return
+  saving.value = true
+  try {
+    const result = await publishPrompt(selectedPrompt.value.id)
+    await refreshPromptSelection(result.data.prompt.id)
+    setSaveStatus(result.data.warnings.length ? `Prompt 已发布，${result.data.warnings.length} 条 warning。` : 'Prompt 已发布。', 'success')
+  } catch (error) {
+    setSaveStatus(messageFromError(error), 'error')
+  } finally {
+    saving.value = false
+  }
+}
+
+async function handleArchivePrompt() {
+  if (!selectedPrompt.value) return
+  saving.value = true
+  try {
+    const result = await archivePrompt(selectedPrompt.value.id)
+    await refreshPromptSelection(result.data.prompt.id)
+    setSaveStatus('Prompt 已归档。', 'success')
+  } catch (error) {
+    setSaveStatus(messageFromError(error), 'error')
+  } finally {
+    saving.value = false
+  }
+}
+
+function openNewResource() {
+  resourceDrawerMode.value = 'create'
+  editErrors.value = []
+  resourceDrawerOpen.value = true
+}
+
+function openEditResource() {
+  resourceDrawerMode.value = 'edit'
+  editErrors.value = []
+  resourceDrawerOpen.value = true
+}
+
+async function saveResourceDraft(payload: ResourceUpsertInput) {
+  saving.value = true
+  editErrors.value = []
+  try {
+    const result = resourceDrawerMode.value === 'create'
+      ? await createResource(payload)
+      : await updateResource(selectedResource.value?.id ?? '', payload)
+    resourceDetail.value = result.data
+    selectedResource.value = result.data.resource
+    source.value = result.source
+    await refreshResourceSelection(result.data.resource.id)
+    resourceDrawerOpen.value = false
+    setSaveStatus('Resource 草稿已保存。', 'success')
+  } catch (error) {
+    editErrors.value = [messageFromError(error)]
+    setSaveStatus('Resource 保存失败。', 'error')
+  } finally {
+    saving.value = false
+  }
+}
+
+async function handlePublishResource() {
+  if (!selectedResource.value) return
+  saving.value = true
+  try {
+    const result = await publishResource(selectedResource.value.id)
+    await refreshResourceSelection(result.data.resource.id)
+    setSaveStatus('Resource 已发布。', 'success')
+  } catch (error) {
+    setSaveStatus(messageFromError(error), 'error')
+  } finally {
+    saving.value = false
+  }
+}
+
+async function handleArchiveResource() {
+  if (!selectedResource.value) return
+  saving.value = true
+  try {
+    const result = await archiveResource(selectedResource.value.id)
+    await refreshResourceSelection(result.data.resource.id)
+    setSaveStatus('Resource 已归档。', 'success')
+  } catch (error) {
+    setSaveStatus(messageFromError(error), 'error')
+  } finally {
+    saving.value = false
+  }
+}
+
+function setSaveStatus(message: string, tone: 'success' | 'error' | 'info') {
+  saveMessage.value = message
+  saveTone.value = tone
+}
+
+function messageFromError(error: unknown) {
+  if (error instanceof ApiRequestError) {
+    return error.message
+  }
+  return error instanceof Error ? error.message : '操作失败，请稍后重试。'
+}
+
 function sampleVariables(variables: string[]) {
   const samples: Record<string, unknown> = {
     customer_id: 'CUST-202405-000123',
@@ -155,30 +342,56 @@ function sampleVariables(variables: string[]) {
       <button type="button" :class="{ active: activeTab === 'binding' }" @click="activeTab = 'binding'">Tool Binding</button>
       <button type="button" :class="{ active: activeTab === 'usage' }" @click="activeTab = 'usage'">Recent Usage</button>
     </nav>
+    <SaveStatusBanner :message="saveMessage" :tone="saveTone" />
 
     <div v-if="loading" class="empty-state">正在同步 Prompt / Resource 治理数据。</div>
 
-    <section v-else-if="activeTab === 'prompt'" class="prompt-workspace-grid">
-      <PromptListPanel :prompts="prompts" :selected-prompt-id="selectedPromptId" @select="selectPrompt" />
-      <PromptEditorPanel :detail="promptDetail" />
-      <aside class="prompt-render-stack">
-        <PromptVariablePanel v-model="variableJson" :parse-error="parseError" :loading="rendering" @render="handleRender" />
-        <PromptRenderPreview :result="renderResult" :source="renderSource" />
-        <PromptResourceActivity :prompt-detail="promptDetail" :resource-detail="resourceDetail" mode="prompt" />
-      </aside>
-    </section>
+    <template v-else-if="activeTab === 'prompt'">
+      <PromptActionBar :detail="promptDetail" :saving="saving" @new="openNewPrompt" @edit="openEditPrompt" @publish="handlePublishPrompt" @archive="handleArchivePrompt" />
+      <section class="prompt-workspace-grid">
+        <PromptListPanel :prompts="prompts" :selected-prompt-id="selectedPromptId" @select="selectPrompt" />
+        <PromptEditorPanel :detail="promptDetail" />
+        <aside class="prompt-render-stack">
+          <PromptVariablePanel v-model="variableJson" :parse-error="parseError" :loading="rendering" @render="handleRender" />
+          <PromptRenderPreview :result="renderResult" :source="renderSource" />
+          <PromptResourceActivity :prompt-detail="promptDetail" :resource-detail="resourceDetail" mode="prompt" />
+        </aside>
+      </section>
+    </template>
 
-    <section v-else-if="activeTab === 'resource'" class="prompt-workspace-grid">
-      <ResourceListPanel :resources="resources" :selected-resource-id="selectedResourceId" @select="selectResource" />
-      <ResourceDetailPanel :detail="resourceDetail" />
-      <aside class="prompt-render-stack">
-        <ResourcePreviewPanel :detail="resourceDetail" />
-        <PromptResourceActivity :prompt-detail="promptDetail" :resource-detail="resourceDetail" mode="resource" />
-      </aside>
-    </section>
+    <template v-else-if="activeTab === 'resource'">
+      <ResourceActionBar :detail="resourceDetail" :saving="saving" @new="openNewResource" @edit="openEditResource" @publish="handlePublishResource" @archive="handleArchiveResource" />
+      <section class="prompt-workspace-grid">
+        <ResourceListPanel :resources="resources" :selected-resource-id="selectedResourceId" @select="selectResource" />
+        <ResourceDetailPanel :detail="resourceDetail" />
+        <aside class="prompt-render-stack">
+          <ResourcePreviewPanel :detail="resourceDetail" />
+          <PromptResourceActivity :prompt-detail="promptDetail" :resource-detail="resourceDetail" mode="resource" />
+        </aside>
+      </section>
+    </template>
 
     <BindingSummaryPanel v-else-if="activeTab === 'binding'" :prompts="prompts" :resources="resources" :tools="tools" />
 
     <PromptResourceActivity v-else :prompt-detail="promptDetail" :resource-detail="resourceDetail" mode="all" />
+
+    <PromptEditDrawer
+      :open="promptDrawerOpen"
+      :mode="promptDrawerMode"
+      :detail="promptDetail"
+      :saving="saving"
+      :api-errors="editErrors"
+      @close="promptDrawerOpen = false"
+      @save="savePromptDraft"
+    />
+    <ResourceEditDrawer
+      :open="resourceDrawerOpen"
+      :mode="resourceDrawerMode"
+      :detail="resourceDetail"
+      :saving="saving"
+      :api-errors="editErrors"
+      @close="resourceDrawerOpen = false"
+      @save="saveResourceDraft"
+    />
   </div>
 </template>

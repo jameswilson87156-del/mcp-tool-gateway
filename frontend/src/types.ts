@@ -157,6 +157,7 @@ export interface PromptDetail {
   relatedTools: string[]
   recentUsage: Array<Record<string, unknown>>
   auditLogs: AuditLogEntry[]
+  warnings: string[]
 }
 
 export interface PromptRenderResponse {
@@ -193,6 +194,30 @@ export interface ResourceDetail {
   relatedPrompts: string[]
   recentReferences: Array<Record<string, unknown>>
   auditLogs: AuditLogEntry[]
+}
+
+export interface PromptUpsertInput {
+  name: string
+  description: string
+  category: string
+  templateContent: string
+  variables: string[]
+  usageScope: string
+  relatedTools: string[]
+  status?: PromptStatus
+}
+
+export interface ResourceUpsertInput {
+  name: string
+  type: ResourceType
+  description: string
+  contentSummary: string
+  schemaPreview: string
+  markdownPreview: string
+  tags: string[]
+  linkedTools: string[]
+  relatedPrompts: string[]
+  status?: ResourceStatus
 }
 
 export interface DashboardStats {

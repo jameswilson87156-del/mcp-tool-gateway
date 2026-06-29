@@ -19,8 +19,10 @@ import type {
   PromptDetail,
   PromptRenderResponse,
   PromptTemplate,
+  PromptUpsertInput,
   ResourceDetail,
   ResourceDocument,
+  ResourceUpsertInput,
   ToolCallRecord,
   ToolCallReview,
   ToolDefinition,
@@ -37,6 +39,17 @@ export interface ApiState<T> {
   source: 'api' | 'demo-fallback'
 }
 
+export class ApiRequestError extends Error {
+  status: number
+  detail: unknown
+
+  constructor(status: number, detail: unknown) {
+    super(typeof detail === 'object' && detail && 'error' in detail ? String((detail as { error: unknown }).error) : `HTTP ${status}`)
+    this.status = status
+    this.detail = detail
+  }
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<ApiState<T>> {
   try {
     const response = await fetch(`${API_BASE}${path}`, {
@@ -47,10 +60,19 @@ async function request<T>(path: string, init?: RequestInit): Promise<ApiState<T>
       ...init
     })
     if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`)
+      let detail: unknown = { error: `HTTP ${response.status}` }
+      try {
+        detail = await response.json()
+      } catch {
+        detail = { error: `HTTP ${response.status}` }
+      }
+      throw new ApiRequestError(response.status, detail)
     }
     return { data: (await response.json()) as T, source: 'api' }
-  } catch {
+  } catch (error) {
+    if (error instanceof ApiRequestError) {
+      throw error
+    }
     return { data: fallback<T>(path, init), source: 'demo-fallback' }
   }
 }
@@ -134,12 +156,56 @@ export function renderPrompt(promptId: string, variables: Record<string, unknown
   })
 }
 
+export function createPrompt(payload: PromptUpsertInput) {
+  return request<PromptDetail>('/prompts', {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  })
+}
+
+export function updatePrompt(promptId: string, payload: PromptUpsertInput) {
+  return request<PromptDetail>(`/prompts/${promptId}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload)
+  })
+}
+
+export function publishPrompt(promptId: string) {
+  return request<PromptDetail>(`/prompts/${promptId}/publish`, { method: 'POST' })
+}
+
+export function archivePrompt(promptId: string) {
+  return request<PromptDetail>(`/prompts/${promptId}/archive`, { method: 'POST' })
+}
+
 export function getResources() {
   return request<ResourceDocument[]>('/resources')
 }
 
 export function getResourceDetail(resourceId: string) {
   return request<ResourceDetail>(`/resources/${resourceId}`)
+}
+
+export function createResource(payload: ResourceUpsertInput) {
+  return request<ResourceDetail>('/resources', {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  })
+}
+
+export function updateResource(resourceId: string, payload: ResourceUpsertInput) {
+  return request<ResourceDetail>(`/resources/${resourceId}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload)
+  })
+}
+
+export function publishResource(resourceId: string) {
+  return request<ResourceDetail>(`/resources/${resourceId}/publish`, { method: 'POST' })
+}
+
+export function archiveResource(resourceId: string) {
+  return request<ResourceDetail>(`/resources/${resourceId}/archive`, { method: 'POST' })
 }
 
 function fallback<T>(path: string, init?: RequestInit): T {
@@ -172,6 +238,9 @@ function fallback<T>(path: string, init?: RequestInit): T {
   if (path === '/audit-logs') {
     return demoAuditLogs as T
   }
+  if (path === '/prompts' && init?.method === 'POST') {
+    return demoPromptDetail as T
+  }
   if (path === '/prompts') {
     return demoPrompts as T
   }
@@ -179,13 +248,24 @@ function fallback<T>(path: string, init?: RequestInit): T {
     const body = init?.body ? JSON.parse(String(init.body)) : { variables: {} }
     return demoPromptRender(path.split('/')[2] ?? demoPromptDetail.prompt.id, body.variables ?? {}) as T
   }
+  if (path.includes('/prompts/') && (path.includes('/publish') || path.includes('/archive') || init?.method === 'PUT')) {
+    const promptId = path.split('/')[2] ?? demoPromptDetail.prompt.id
+    const prompt = demoPrompts.find((item) => item.id === promptId) ?? demoPromptDetail.prompt
+    return { ...demoPromptDetail, prompt } as T
+  }
   if (path.startsWith('/prompts/')) {
     const promptId = path.split('/')[2] ?? demoPromptDetail.prompt.id
     const prompt = demoPrompts.find((item) => item.id === promptId) ?? demoPromptDetail.prompt
     return { ...demoPromptDetail, prompt, templateContent: prompt.templateContent, variables: prompt.variables } as T
   }
+  if (path === '/resources' && init?.method === 'POST') {
+    return demoResourceDetail as T
+  }
   if (path === '/resources') {
     return demoResources as T
+  }
+  if (path.includes('/resources/') && (path.includes('/publish') || path.includes('/archive') || init?.method === 'PUT')) {
+    return demoResourceDetail as T
   }
   if (path.startsWith('/resources/')) {
     const resourceId = path.split('/')[2] ?? demoResourceDetail.resource.id

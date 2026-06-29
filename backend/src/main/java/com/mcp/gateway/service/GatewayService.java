@@ -2,6 +2,8 @@ package com.mcp.gateway.service;
 
 import com.mcp.gateway.api.InvokeRequest;
 import com.mcp.gateway.api.PromptRenderRequest;
+import com.mcp.gateway.api.PromptUpsertRequest;
+import com.mcp.gateway.api.ResourceUpsertRequest;
 import com.mcp.gateway.api.ReviewRequest;
 import com.mcp.gateway.model.*;
 import com.mcp.gateway.persistence.*;
@@ -266,6 +268,100 @@ public class GatewayService {
 
     public PromptDetail getPromptDetail(String id) {
         var prompt = requirePrompt(id);
+        return promptDetail(prompt, List.of());
+    }
+
+    public PromptDetail createPrompt(PromptUpsertRequest request) {
+        var now = Instant.now().toString();
+        var prompt = new PromptTemplate(
+                "prompt_" + shortId(),
+                requireText(request.name(), "Prompt name is required"),
+                text(request.description()),
+                "v1.0.0",
+                textOr(request.category(), "General"),
+                textOr(request.status(), "DRAFT"),
+                listOrEmpty(request.variables()),
+                text(request.usageScope()),
+                listOrEmpty(request.relatedTools()),
+                now,
+                0,
+                text(request.templateContent())
+        );
+        promptRepository.save(prompt);
+        audit(demoAdmin.username(), "prompt.create", "PromptTemplate", prompt.id(), Map.of("status", prompt.status()));
+        return promptDetail(prompt, List.of());
+    }
+
+    public PromptDetail updatePrompt(String id, PromptUpsertRequest request) {
+        var existing = requirePrompt(id);
+        var updated = new PromptTemplate(
+                existing.id(),
+                requireText(request.name(), "Prompt name is required"),
+                text(request.description()),
+                existing.version(),
+                textOr(request.category(), existing.category()),
+                textOr(request.status(), "DRAFT"),
+                listOrEmpty(request.variables()),
+                text(request.usageScope()),
+                listOrEmpty(request.relatedTools()),
+                Instant.now().toString(),
+                existing.usageCount(),
+                text(request.templateContent())
+        );
+        promptRepository.save(updated);
+        audit(demoAdmin.username(), "prompt.update", "PromptTemplate", updated.id(), Map.of("status", updated.status()));
+        return promptDetail(updated, List.of());
+    }
+
+    public PromptDetail publishPrompt(String id) {
+        var existing = requirePrompt(id);
+        requireText(existing.name(), "Prompt name is required before publish");
+        requireText(existing.templateContent(), "Prompt templateContent is required before publish");
+        var warnings = existing.variables().stream()
+                .filter(variable -> !existing.templateContent().contains("{{" + variable + "}}"))
+                .map(variable -> "变量未在模板中找到: " + variable)
+                .toList();
+        var published = new PromptTemplate(
+                existing.id(),
+                existing.name(),
+                existing.description(),
+                existing.version(),
+                existing.category(),
+                "ACTIVE",
+                existing.variables(),
+                existing.usageScope(),
+                existing.relatedTools(),
+                Instant.now().toString(),
+                existing.usageCount(),
+                existing.templateContent()
+        );
+        promptRepository.save(published);
+        audit(demoAdmin.username(), "prompt.publish", "PromptTemplate", published.id(), Map.of("warnings", warnings));
+        return promptDetail(published, warnings);
+    }
+
+    public PromptDetail archivePrompt(String id) {
+        var existing = requirePrompt(id);
+        var archived = new PromptTemplate(
+                existing.id(),
+                existing.name(),
+                existing.description(),
+                existing.version(),
+                existing.category(),
+                "ARCHIVED",
+                existing.variables(),
+                existing.usageScope(),
+                existing.relatedTools(),
+                Instant.now().toString(),
+                existing.usageCount(),
+                existing.templateContent()
+        );
+        promptRepository.save(archived);
+        audit(demoAdmin.username(), "prompt.archive", "PromptTemplate", archived.id(), Map.of("previousStatus", existing.status()));
+        return promptDetail(archived, List.of());
+    }
+
+    private PromptDetail promptDetail(PromptTemplate prompt, List<String> warnings) {
         return new PromptDetail(
                 prompt,
                 prompt.templateContent(),
@@ -275,7 +371,8 @@ public class GatewayService {
                 prompt.usageScope(),
                 prompt.relatedTools(),
                 recentPromptUsage(prompt),
-                relatedContentAuditLogs("PromptTemplate", prompt.id())
+                relatedContentAuditLogs("PromptTemplate", prompt.id()),
+                warnings
         );
     }
 
@@ -330,6 +427,101 @@ public class GatewayService {
 
     public ResourceDetail getResourceDetail(String id) {
         var resource = requireResource(id);
+        return resourceDetail(resource);
+    }
+
+    public ResourceDetail createResource(ResourceUpsertRequest request) {
+        var now = Instant.now().toString();
+        var resource = new ResourceDocument(
+                "res_" + shortId(),
+                requireText(request.name(), "Resource name is required"),
+                textOr(request.type(), "DOCUMENT"),
+                text(request.description()),
+                textOr(request.status(), "DRAFT"),
+                listOrEmpty(request.tags()),
+                listOrEmpty(request.linkedTools()),
+                now,
+                0,
+                text(request.contentSummary()),
+                text(request.schemaPreview()),
+                text(request.markdownPreview()),
+                listOrEmpty(request.relatedPrompts())
+        );
+        resourceRepository.save(resource);
+        audit(demoAdmin.username(), "resource.create", "ResourceDocument", resource.id(), Map.of("status", resource.status()));
+        return resourceDetail(resource);
+    }
+
+    public ResourceDetail updateResource(String id, ResourceUpsertRequest request) {
+        var existing = requireResource(id);
+        var updated = new ResourceDocument(
+                existing.id(),
+                requireText(request.name(), "Resource name is required"),
+                textOr(request.type(), existing.type()),
+                text(request.description()),
+                textOr(request.status(), "DRAFT"),
+                listOrEmpty(request.tags()),
+                listOrEmpty(request.linkedTools()),
+                Instant.now().toString(),
+                existing.referenceCount(),
+                text(request.contentSummary()),
+                text(request.schemaPreview()),
+                text(request.markdownPreview()),
+                listOrEmpty(request.relatedPrompts())
+        );
+        resourceRepository.save(updated);
+        audit(demoAdmin.username(), "resource.update", "ResourceDocument", updated.id(), Map.of("status", updated.status()));
+        return resourceDetail(updated);
+    }
+
+    public ResourceDetail publishResource(String id) {
+        var existing = requireResource(id);
+        requireText(existing.name(), "Resource name is required before publish");
+        requireText(existing.type(), "Resource type is required before publish");
+        requireText(existing.contentSummary(), "Resource contentSummary is required before publish");
+        var published = new ResourceDocument(
+                existing.id(),
+                existing.name(),
+                existing.type(),
+                existing.description(),
+                "PUBLISHED",
+                existing.tags(),
+                existing.linkedTools(),
+                Instant.now().toString(),
+                existing.referenceCount(),
+                existing.contentSummary(),
+                existing.schemaPreview(),
+                existing.markdownPreview(),
+                existing.relatedPrompts()
+        );
+        resourceRepository.save(published);
+        audit(demoAdmin.username(), "resource.publish", "ResourceDocument", published.id(), Map.of("type", published.type()));
+        return resourceDetail(published);
+    }
+
+    public ResourceDetail archiveResource(String id) {
+        var existing = requireResource(id);
+        var archived = new ResourceDocument(
+                existing.id(),
+                existing.name(),
+                existing.type(),
+                existing.description(),
+                "ARCHIVED",
+                existing.tags(),
+                existing.linkedTools(),
+                Instant.now().toString(),
+                existing.referenceCount(),
+                existing.contentSummary(),
+                existing.schemaPreview(),
+                existing.markdownPreview(),
+                existing.relatedPrompts()
+        );
+        resourceRepository.save(archived);
+        audit(demoAdmin.username(), "resource.archive", "ResourceDocument", archived.id(), Map.of("previousStatus", existing.status()));
+        return resourceDetail(archived);
+    }
+
+    private ResourceDetail resourceDetail(ResourceDocument resource) {
         return new ResourceDetail(
                 resource,
                 resource.contentSummary(),
@@ -403,6 +595,35 @@ public class GatewayService {
 
     private String comment(ReviewRequest request, String fallback) {
         return request.comment() == null || request.comment().isBlank() ? fallback : request.comment();
+    }
+
+    private String text(String value) {
+        return value == null ? "" : value.trim();
+    }
+
+    private String textOr(String value, String fallback) {
+        var normalized = text(value);
+        return normalized.isBlank() ? fallback : normalized;
+    }
+
+    private String requireText(String value, String message) {
+        var normalized = text(value);
+        if (normalized.isBlank()) {
+            throw new IllegalArgumentException(message);
+        }
+        return normalized;
+    }
+
+    private List<String> listOrEmpty(List<String> values) {
+        if (values == null) {
+            return List.of();
+        }
+        return values.stream()
+                .filter(Objects::nonNull)
+                .map(String::trim)
+                .filter(value -> !value.isBlank())
+                .distinct()
+                .toList();
     }
 
     private List<String> requiredParameterNames(ToolDefinition tool) {
