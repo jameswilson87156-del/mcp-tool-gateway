@@ -1,6 +1,7 @@
 import {
   demoAuditLogs,
   demoCall,
+  demoCurrentUser,
   demoPromptDetail,
   demoPromptRender,
   demoPrompts,
@@ -16,6 +17,7 @@ import {
 import type {
   AuditLogEntry,
   DashboardStats,
+  DemoUserProfile,
   PromptDetail,
   PromptRenderResponse,
   PromptTemplate,
@@ -83,6 +85,22 @@ export function getTools() {
 
 export function getStats() {
   return request<DashboardStats>('/dashboard/stats')
+}
+
+export async function getCurrentUser() {
+  const result = await request<Partial<DemoUserProfile>>('/auth/me')
+  return {
+    source: result.source,
+    data: {
+      ...demoCurrentUser,
+      ...result.data,
+      displayName: result.data.displayName || demoCurrentUser.displayName,
+      environment: demoCurrentUser.environment,
+      modeLabel: demoCurrentUser.modeLabel,
+      productLabel: demoCurrentUser.productLabel,
+      signOutLabel: demoCurrentUser.signOutLabel
+    }
+  } satisfies ApiState<DemoUserProfile>
 }
 
 export function getToolCalls() {
@@ -214,6 +232,9 @@ function fallback<T>(path: string, init?: RequestInit): T {
   }
   if (path === '/dashboard/stats') {
     return demoStats as T
+  }
+  if (path === '/auth/me') {
+    return demoCurrentUser as T
   }
   if (path.startsWith('/traces/')) {
     const segments = path.split('/')

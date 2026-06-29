@@ -1,6 +1,7 @@
 import type {
   AuditLogEntry,
   DashboardStats,
+  DemoUserProfile,
   PromptDetail,
   PromptRenderResponse,
   PromptTemplate,
@@ -16,6 +17,18 @@ import type {
 
 const DEMO_CALL_ID = 'call_demo_01HX6Z8K'
 const now = () => new Date().toISOString()
+
+export const demoCurrentUser: DemoUserProfile = {
+  id: 'usr_admin',
+  username: 'admin',
+  displayName: '王震龙',
+  role: 'ADMIN',
+  permissionScopes: ['tool:*', 'prompt:*', 'resource:*', 'review:*', 'audit:read'],
+  environment: 'Local Demo',
+  modeLabel: 'RBAC demo',
+  productLabel: 'MCP-style Gateway',
+  signOutLabel: 'Sign out disabled in demo'
+}
 
 export const demoTools: ToolDefinition[] = [
   tool('crm.customer.search', '查询 CRM 客户 demo 数据', 'CRM', 'OpenAI-compatible', 'v1.2.0', 'MEDIUM', ['crm:customer:read'], [

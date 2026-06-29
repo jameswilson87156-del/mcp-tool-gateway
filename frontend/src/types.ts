@@ -229,3 +229,18 @@ export interface DashboardStats {
   providerStatus: string
   boundary: string
 }
+
+export interface UserAccount {
+  id: string
+  username: string
+  displayName: string
+  role: 'ADMIN' | 'DEVELOPER' | 'REVIEWER' | 'VIEWER'
+  permissionScopes: string[]
+}
+
+export interface DemoUserProfile extends UserAccount {
+  environment: 'Local Demo'
+  modeLabel: 'RBAC demo'
+  productLabel: 'MCP-style Gateway'
+  signOutLabel: 'Sign out disabled in demo'
+}

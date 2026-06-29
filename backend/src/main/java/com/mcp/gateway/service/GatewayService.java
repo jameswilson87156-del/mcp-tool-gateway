@@ -26,7 +26,7 @@ public class GatewayService {
     private final UserAccount demoAdmin = new UserAccount(
             "usr_admin",
             "admin",
-            "平台管理员",
+            "王震龙",
             UserRole.ADMIN,
             List.of("tool:*", "prompt:*", "resource:*", "review:*", "audit:read")
     );

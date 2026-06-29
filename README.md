@@ -42,6 +42,7 @@ Tool selection -> JSON parameters -> sandbox invocation -> response preview -> P
 - Prompt Studio / Resource Library workspace for Prompt variables, demo/sandbox render, Resource previews, Tool bindings, and usage/audit evidence.
 - P5A H2 + JdbcTemplate persistence for Tools, Prompts, Resources, Tool Calls, Reviews, Trace Events, Audit Logs, demo users, and role policy demo rows.
 - P5B Prompt / Resource editing workflow with create, update, draft, publish, archive, validation feedback, and Audit Log evidence.
+- UI polish: refined admin avatar and demo user menu.
 
 ## Boundaries
 
@@ -55,6 +56,7 @@ Tool selection -> JSON parameters -> sandbox invocation -> response preview -> P
 - Resource Library is context resource management, not an enterprise knowledge graph.
 - H2 persistence is a local demo persistence layer, not a production database architecture.
 - Prompt / Resource editing is a local demo governance workflow, not a real enterprise configuration center.
+- The admin avatar and user menu are demo UI polish, not a real account system.
 
 ## Design References
 

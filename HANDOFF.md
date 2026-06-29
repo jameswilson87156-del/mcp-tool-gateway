@@ -13,6 +13,7 @@ MCP Tool Gateway P1 is a runnable demo project with:
 - P4 Prompt Studio / Resource Library workspace.
 - P5A H2 + JdbcTemplate persistence layer.
 - P5B Prompt / Resource editing workflow.
+- UI polish for the admin avatar and demo user menu.
 
 ## Visual Direction
 
@@ -72,3 +73,4 @@ Default entry is B2 Tool Call Workbench, not a traditional KPI dashboard. Keep t
 - The Prompt / Resource frontend uses action bars, right-side edit drawers, save status feedback, and validation messages instead of a plain CRUD table.
 - Prompt publish sets status to `ACTIVE`; Resource publish sets status to `PUBLISHED`; archive sets status to `ARCHIVED`.
 - Prompt / Resource editing remains a local demo governance workflow, not a real enterprise configuration center.
+- The top-right user menu reads `/api/auth/me` when available and falls back to centralized demo user data. It is not a real account system and sign out is disabled in demo.
