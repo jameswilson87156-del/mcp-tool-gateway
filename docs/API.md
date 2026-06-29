@@ -201,13 +201,40 @@ Create/update request:
 
 ```json
 {
+  "name": "review.summary.prompt",
+  "description": "Summarize a Tool Call for Human Review",
+  "category": "Governance",
+  "templateContent": "Review Tool {{tool_name}} with input {{input}}.",
+  "variables": ["tool_name", "input"],
+  "usageScope": "Human Review demo",
+  "relatedTools": ["db.query.readonly"],
+  "status": "DRAFT"
+}
+```
+
+`POST /prompts` creates a `DRAFT` Prompt when no status is supplied. Publish requires `name` and `templateContent`, then sets status to `ACTIVE`. Render performs local demo variable replacement only.
+
+## Resources
+
+- `GET /resources`
+- `POST /resources`
+- `GET /resources/{id}`
+- `PUT /resources/{id}`
+- `POST /resources/{id}/publish`
+- `POST /resources/{id}/archive`
+
+`GET /resources?page=&size=&keyword=&status=&type=` returns `PageResponse<ResourceDocument>`.
+
+Create/update request:
+
+```json
+{
   "name": "policy-boundary-note",
-  "type": "Markdown",
+  "type": "MARKDOWN",
   "description": "Local demo permission scope note",
   "contentSummary": "Records Tool, Prompt, and Resource demo governance boundaries.",
   "schemaPreview": "",
-  "markdownPreview": "## Permission Boundary
-Demo and sandbox only.",
+  "markdownPreview": "## Permission Boundary\nDemo and sandbox only.",
   "tags": ["governance", "RBAC"],
   "linkedTools": ["db.query.readonly"],
   "relatedPrompts": ["review.summary.prompt"],

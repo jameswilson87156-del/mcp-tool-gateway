@@ -2,97 +2,58 @@
 
 ## Current State
 
-MCP Tool Gateway P1 is a runnable demo project with:
+MCP Tool Gateway 的 P1–P5D 功能阶段和 P6 portfolio 文档收口均已完成。项目当前适合作为 GitHub 上的 Java backend / AI Agent platform learning project 展示：
 
-- Spring Boot 3 backend under `backend`.
-- Vue 3 + Vite + TypeScript frontend under `frontend`.
-- AI-generated design references under `docs/design/concepts`.
-- Real browser screenshot targets under `docs/images`.
-- P2 Tool Registry and Human Review Center pages.
-- P3 Trace Evidence governance center.
-- P4 Prompt Studio / Resource Library workspace.
-- P5A H2 + JdbcTemplate persistence layer.
-- P5B Prompt / Resource editing workflow.
-- UI polish for the admin avatar and demo user menu.
-- P5C paginated filtering for governance lists and a lightweight Audit Log page.
-- P5D RBAC PolicyService demo for sensitive API actions and structured `403` responses.
+- Spring Boot 3 + Java 17 backend，Vue 3 + Vite + TypeScript frontend。
+- H2 + JdbcTemplate persistence，9 张 demo 表，seed-on-empty。
+- Tool Registry、Schema、Workbench、Human Review、Trace Evidence、Audit Log。
+- Prompt / Resource create、update、publish、archive 与 sandbox render。
+- 五类治理列表统一 PageResponse pagination 与筛选。
+- PolicyService demo RBAC、`X-Demo-Role` 测试 helper 和结构化 `403`。
+- Playwright 真实本地浏览器截图位于 `docs/images`。
+- Resume evidence、Interview Q&A、Project Boundary、Roadmap 已集中整理。
 
-## Visual Direction
+## Verification Baseline
 
-Default entry is B2 Tool Call Workbench, not a traditional KPI dashboard. Keep the light Linear / Stripe developer-console style:
+2026-06-29 最近一次验收基线：
 
-- Near-white background.
-- Graphite text.
-- Cool gray borders.
-- Cobalt action blue.
-- Green success, orange review, red blocked.
-- Chinese-first with English technical terms such as MCP, Tool, Provider, Trace, Human Review, RBAC, JSON, Schema, Latency.
+- Backend：`mvn test`，34 tests passed。
+- Frontend：`npm run build` passed。
+- Screenshots：`npm run screenshots` passed；本轮若截图路径和 UI 未变可不重复运行。
+- Root：`git diff --check` passed。
+- Security check：未跟踪 secret、`.env`、build output、日志或 H2 数据文件。
+
+详细记录见 `docs/TEST_REPORT.md`。
 
 ## Boundaries To Preserve
 
-- MCP-style only.
-- RBAC demo only.
-- Tool execution is demo/sandbox only.
-- `db.query.readonly` is SELECT-only.
-- H2 persistence is local demo persistence, not a production database architecture.
-- P5C filters are local demo H2 filters, not production search or Elasticsearch.
-- PolicyService is demo RBAC only; `X-Demo-Role` is a local demo/testing helper, not a production auth header.
-- Concept images are not runtime product screenshots.
+- MCP-style only，不是完整官方 MCP 协议实现。
+- PolicyService / `X-Demo-Role` 是 demo/testing，不是生产鉴权。
+- Tool execution 和 Prompt render 是 sandbox，不连接真实 provider。
+- H2、PageResponse 和本地筛选服务于 demo 数据，不是生产数据库或搜索架构。
+- Resource Library 不是企业知识图谱。
+- Human Review 是显式审批边界；不宣称无人值守高风险执行。
+- `docs/images` 是运行截图；`docs/design/concepts` 仅是 AI concept references。
 
-## P2 Notes
+完整边界见 `docs/project-boundary.md`，未来方向见 `docs/roadmap.md`。
 
-- `Tool Registry` is a real page with search, filters, registry rows, Tool Schema, parameters, permission scopes, version, and recent call summary.
-- `Human Review` is a real page with review queue, request detail, Trace Evidence summary, Audit Log, and backend-backed approve/reject/request-changes actions.
+## Recommended Next Step
 
-## P3 Notes
+1. 创建 GitHub remote。
+2. 推送当前 `main`。
+3. 可选部署只读 demo。
+4. 如果继续生产化，使用独立 roadmap 分支，不在当前 portfolio 主线无边界堆功能。
 
-- `Trace Evidence` is a real page with backend-backed Trace summaries and detail drilldown.
-- `GET /api/traces` supports keyword, status, risk level, review requirement, and Tool name filtering in memory.
-- `GET /api/traces/{traceId}` returns Tool Call context, Tool Schema summary, JSON evidence, Permission Result, review decision, TraceEvent timeline, and related AuditLogEntry records.
-- The frontend falls back to centralized demo Trace data only when the backend is unavailable and labels that state.
+## Quick Commands
 
-## P4 Notes
+```bash
+cd backend
+mvn test
 
-- `Prompt Studio / Resource Library` is a real page shared by the `提示词工作室` and `资源中心` navigation entries.
-- `GET /api/prompts`, `GET /api/prompts/{id}`, and `POST /api/prompts/{id}/render` support Prompt list, detail, and demo/sandbox render.
-- Missing Prompt variables return structured validation errors instead of silently rendering.
-- `GET /api/resources` and `GET /api/resources/{id}` support Resource list/detail, previews, linked Tools, related Prompts, and recent reference summaries.
-- Prompt render records `AuditLogEntry`; Resource Library remains context resource management, not an enterprise knowledge graph.
+cd ../frontend
+npm run build
 
-## P5A Notes
-
-- Core backend state now reads/writes through JdbcTemplate repositories under `backend/src/main/java/com/mcp/gateway/persistence`.
-- H2 tables are created from `backend/src/main/resources/schema.sql`.
-- `GatewayService` still owns business orchestration for Tool invoke, Human Review, Trace aggregation, Prompt render, and Resource detail.
-- Startup uses seed-on-empty for P1-P4-compatible demo data.
-- P5C list endpoints use `PageResponse<T>` for Trace, Review, Audit Log, Prompt, and Resource lists; frontend adapters still tolerate legacy arrays.
-- `.data/`, `*.mv.db`, and `*.trace.db` are ignored and must not be committed.
-- Remaining work is optional local H2 file profile documentation and stricter RBAC policy modeling.
-
-## P5B Notes
-
-- `POST /api/prompts`, `PUT /api/prompts/{id}`, `POST /api/prompts/{id}/publish`, and `POST /api/prompts/{id}/archive` support Prompt create/update/publish/archive.
-- `POST /api/resources`, `PUT /api/resources/{id}`, `POST /api/resources/{id}/publish`, and `POST /api/resources/{id}/archive` support Resource create/update/publish/archive.
-- Write operations persist through the existing H2 + JdbcTemplate repositories and record `AuditLogEntry` rows.
-- The Prompt / Resource frontend uses action bars, right-side edit drawers, save status feedback, and validation messages instead of a plain CRUD table.
-- Prompt publish sets status to `ACTIVE`; Resource publish sets status to `PUBLISHED`; archive sets status to `ARCHIVED`.
-- Prompt / Resource editing remains a local demo governance workflow, not a real enterprise configuration center.
-- The top-right user menu reads `/api/auth/me` when available and falls back to centralized demo user data. It is not a real account system and sign out is disabled in demo.
-
-## P5C Notes
-
-- `GET /api/traces`, `/api/reviews`, `/api/audit-logs`, `/api/prompts`, and `/api/resources` return `PageResponse<T>`.
-- `page` starts at `0`; default `size` is `10`; maximum `size` is `50`.
-- Frontend `api.ts` converts legacy arrays and demo fallback arrays into `PageResponse`.
-- Trace Evidence, Human Review, Prompt Studio, Resource Library, and Audit Log pages use compact pagination controls.
-- Audit Log is a real lightweight page with local filters for action, actor, target, and keyword.
-- P5C does not add production search, full-text indexing, complete MCP protocol support, real external execution, or production RBAC.
-## P5D Notes
-
-- `PolicyService` centralizes role-to-action checks for the demo gateway.
-- Demo roles are `ADMIN`, `DEVELOPER`, `REVIEWER`, and `VIEWER`.
-- Demo actions are `TOOL_INVOKE`, `TOOL_MANAGE`, `PROMPT_EDIT`, `PROMPT_PUBLISH`, `RESOURCE_EDIT`, `RESOURCE_PUBLISH`, `REVIEW_DECIDE`, `TRACE_VIEW`, `AUDIT_VIEW`, and `SETTINGS_MANAGE`.
-- Sensitive endpoints for Tool invoke, Prompt/Resource edits and publish/archive, Review decisions, Trace reads, and Audit Log reads call policy before business actions.
-- Unauthorized actions return structured `403` JSON with `code`, `message`, `action`, `role`, and `requestId`.
-- Tests can simulate roles with `X-Demo-Role`; this is only a demo/testing helper.
-- P5D does not add OAuth, SSO, JWT, real account management, multi-tenancy, complete MCP protocol compatibility, or real external tool execution.
+cd ..
+git diff --check
+git status --short
+```
