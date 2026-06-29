@@ -74,8 +74,10 @@ class ApiControllerTests {
     void listsDemoTools() throws Exception {
         mockMvc.perform(get("/api/tools"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$", hasSize(6)))
+                .andExpect(jsonPath("$[?(@.id == 'weather.lookup')]").exists())
+                .andExpect(jsonPath("$[?(@.id == 'ticket.search')]").exists())
                 .andExpect(jsonPath("$[?(@.id == 'crm.customer.search')]").exists())
+                .andExpect(jsonPath("$[?(@.id == 'db.query.readonly')]").exists())
                 .andExpect(jsonPath("$[0].category").exists())
                 .andExpect(jsonPath("$[0].approvalRequired").exists())
                 .andExpect(jsonPath("$[0].schema.type").value("object"))

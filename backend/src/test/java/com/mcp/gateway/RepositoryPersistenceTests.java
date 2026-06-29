@@ -8,9 +8,11 @@ import com.mcp.gateway.persistence.AuditLogRepository;
 import com.mcp.gateway.persistence.JsonCodec;
 import com.mcp.gateway.persistence.ToolRepository;
 import com.mcp.gateway.service.GatewayService;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.time.Instant;
 import java.util.List;
@@ -31,6 +33,15 @@ class RepositoryPersistenceTests {
 
     @Autowired
     private GatewayService gateway;
+
+    @Autowired
+    private JdbcTemplate jdbc;
+
+    @AfterEach
+    void cleanRepositoryTestData() {
+        jdbc.update("delete from tools where id = ?", "test.echo.readonly");
+        jdbc.update("delete from audit_logs where id = ?", "audit_test_json");
+    }
 
     @Test
     void jsonCodecRoundTripsMapAndListValues() {
