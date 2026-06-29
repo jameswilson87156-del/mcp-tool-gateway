@@ -15,7 +15,7 @@
 - PolicyService 角色—动作检查与结构化 `403`。
 - HTTP `POST /api/mcp/rpc` MCP-style JSON-RPC adapter demo，支持四个 list/call methods 并复用现有 Tool invoke 治理链。
 - Vue 3 + TypeScript 开发者控制台，以及 Playwright 对真实本地页面的截图脚本。
-- 45 个 JUnit / MockMvc 后端测试，覆盖主要 API、JSON-RPC adapter、OpenAPI、持久化、状态流转、分页和 Policy 边界。
+- 60 个 JUnit / MockMvc 后端测试，覆盖主要 API、JSON-RPC adapter、OpenAPI、持久化、状态流转、分页、Policy 和 Repository/JsonCodec 边界。
 
 ## Demo / Sandbox 能力
 

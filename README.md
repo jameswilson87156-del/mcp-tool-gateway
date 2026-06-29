@@ -201,7 +201,7 @@ npm run screenshots
 
 最近一次本地验收（2026-06-29）：
 
-- `mvn test`：passed，45 tests，0 failures，0 errors。
+- `mvn test`：passed，60 tests，0 failures，0 errors。
 - `npm run build`：passed，`vue-tsc --noEmit` 与 `vite build` 完成。
 - `npm run screenshots`：passed，六个页面由真实本地浏览器捕获。
 - `git diff --check`：passed。

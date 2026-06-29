@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.NoSuchElementException;
 
 @Service
 public class McpRpcService {
@@ -105,7 +106,7 @@ public class McpRpcService {
         var tool = gateway.listTools().stream()
                 .filter(candidate -> candidate.name().equals(toolName) || candidate.id().equals(toolName))
                 .findFirst()
-                .orElseThrow(InvalidParamsException::new);
+                .orElseThrow(() -> new NoSuchElementException("Tool not found: " + toolName));
 
         policy.require(role, PolicyAction.TOOL_INVOKE);
         var call = gateway.invoke(tool.id(), new InvokeRequest("sandbox", "mcp-json-rpc", arguments));

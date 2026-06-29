@@ -32,7 +32,7 @@ MCP Tool Gateway 是一个面向企业 AI Agent 的 MCP-style 工具接入与治
 - 建模 Tool Schema、permission scope 与四级风险策略，为高风险 Tool Call 设计 `PENDING_REVIEW -> APPROVED / REJECTED / CHANGES_REQUESTED` 人工审批流程。
 - 实现 Trace Evidence 聚合，将 Tool 选择、Schema、权限、审批、sandbox 执行和 Audit Log 串成可查询证据链。
 - 实现 Prompt / Resource create、update、publish、archive 及审计记录，并用统一 `PageResponse` 支持五类治理列表的分页筛选。
-- 使用 Vue 3 + TypeScript 构建开发者控制台，并通过 45 个后端测试、类型检查、Vite build 和 Playwright 真实截图完成本地验收。
+- 使用 Vue 3 + TypeScript 构建开发者控制台，并通过 60 个后端测试、类型检查、Vite build 和 Playwright 真实截图完成本地验收。
 
 ## 不建议写进简历的夸大说法
 
@@ -60,7 +60,7 @@ MCP Tool Gateway 是一个面向企业 AI Agent 的 MCP-style 工具接入与治
 11. `db.query.readonly` 的字符串拦截规则有哪些绕过风险？
 12. Prompt / Resource publish 为什么需要状态和审计证据？
 13. 后端不可用时 frontend fallback 如何避免误导用户？
-14. 45 个后端测试重点覆盖了哪些业务边界？
+14. 60 个后端测试重点覆盖了哪些业务边界？
 15. 如果生产化，第一阶段应先替换哪些 demo 边界？
 
 对应参考回答见 [interview-qa.md](interview-qa.md)。

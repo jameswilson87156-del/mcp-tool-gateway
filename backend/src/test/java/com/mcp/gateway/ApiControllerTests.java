@@ -474,6 +474,19 @@ class ApiControllerTests {
     }
 
     @Test
+    void traceMaxPageSizeAndAuditKeywordAreStable() throws Exception {
+        mockMvc.perform(get("/api/traces")
+                        .param("size", "200"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.size").value(50));
+
+        mockMvc.perform(get("/api/audit-logs")
+                        .param("keyword", "PENDING"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].action").value("tool.invoke.pending_review"));
+    }
+
+    @Test
     void promptStatusAndCategoryFiltersReturnMatchingPage() throws Exception {
         mockMvc.perform(get("/api/prompts")
                         .param("status", "ACTIVE")

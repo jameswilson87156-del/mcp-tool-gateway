@@ -121,6 +121,26 @@ class McpRpcControllerTests {
     }
 
     @Test
+    void returnsInvalidRequestWhenJsonRpcFieldIsMissing() throws Exception {
+        rpc("""
+                {"id":"req_missing_version","method":"tools/list","params":{}}
+                """)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value("req_missing_version"))
+                .andExpect(jsonPath("$.error.code").value(-32600));
+    }
+
+    @Test
+    void returnsInvalidParamsWhenToolNameIsMissing() throws Exception {
+        rpc("""
+                {"jsonrpc":"2.0","id":"req_missing_tool","method":"tools/call","params":{"arguments":{"city":"上海"}}}
+                """)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value("req_missing_tool"))
+                .andExpect(jsonPath("$.error.code").value(-32602));
+    }
+
+    @Test
     void returnsInvalidParamsWhenToolArgumentsAreMissing() throws Exception {
         rpc("""
                 {"jsonrpc":"2.0","id":"req_params","method":"tools/call","params":{"toolName":"weather.lookup"}}
@@ -128,6 +148,22 @@ class McpRpcControllerTests {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.error.code").value(-32602))
                 .andExpect(jsonPath("$.error.message").value("Invalid params"));
+    }
+
+    @Test
+    void returnsServerErrorForUnknownToolName() throws Exception {
+        rpc("""
+                {
+                  "jsonrpc":"2.0",
+                  "id":"req_unknown_tool",
+                  "method":"tools/call",
+                  "params":{"toolName":"missing.tool","arguments":{},"role":"ADMIN"}
+                }
+                """)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value("req_unknown_tool"))
+                .andExpect(jsonPath("$.error.code").value(-32000))
+                .andExpect(jsonPath("$.error.message").value("Server error"));
     }
 
     @Test
@@ -145,6 +181,16 @@ class McpRpcControllerTests {
                 .andExpect(jsonPath("$.error.message").value("Forbidden"))
                 .andExpect(jsonPath("$.error.data.action").value("TOOL_INVOKE"))
                 .andExpect(jsonPath("$.error.data.role").value("VIEWER"));
+    }
+
+    @Test
+    void echoesNumericJsonRpcId() throws Exception {
+        rpc("""
+                {"jsonrpc":"2.0","id":1024,"method":"tools/list","params":{}}
+                """)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1024))
+                .andExpect(jsonPath("$.result.tools").isArray());
     }
 
     private org.springframework.test.web.servlet.ResultActions rpc(String body) throws Exception {

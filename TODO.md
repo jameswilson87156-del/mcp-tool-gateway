@@ -13,13 +13,15 @@
 - [x] P6：GitHub README、简历证据、面试问答、项目边界和 roadmap 收口。
 - [x] P7A：GitHub Actions CI、Docker Compose、OpenAPI / Swagger 与一键启动文档。
 - [x] P7B：MCP-style JSON-RPC adapter demo，支持 `tools/list`、`tools/call`、`prompts/list`、`resources/list`。
+- [x] P7C：测试覆盖增强，后端测试提升到 60 个，覆盖 RPC、Policy、Repository/JsonCodec、Trace/Audit 和内容状态边界。
 
 当前项目已推送 GitHub，并具备简历展示和基础工程化演示条件：核心链路、真实页面截图、自动化测试、CI、容器化启动、API 文档和能力边界均已归档。
 
 ## Recommended Next Steps
 
 - [x] P7A 已推送，GitHub Actions backend / frontend jobs 均通过。
-- [ ] 推送 P7B 后确认 GitHub Actions 的 45 个 backend tests 和 frontend build 通过。
+- [x] P7B 已推送，GitHub Actions backend / frontend jobs 均通过。
+- [ ] 推送 P7C 后确认 GitHub Actions 的 60 个 backend tests 和 frontend build 通过。
 - [ ] 可选：在具备 Docker Engine 的环境执行 Compose smoke test。
 - [ ] 可选：部署只读演示环境，并保持 demo/sandbox 和非生产部署标签可见。
 - [ ] 可选：仅在明确决定生产化后，新建独立 roadmap 分支逐项替换 demo 边界。
