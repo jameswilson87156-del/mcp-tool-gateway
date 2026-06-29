@@ -2,6 +2,50 @@
 
 Base URL: `http://localhost:8080/api`
 
+## MCP-style JSON-RPC Adapter Demo
+
+- `POST /mcp/rpc`
+
+This HTTP endpoint is an MCP-style JSON-RPC adapter demo, not a complete MCP official protocol implementation or official MCP server. It supports only:
+
+- `tools/list`
+- `tools/call`
+- `prompts/list`
+- `resources/list`
+
+Request:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": "req_001",
+  "method": "tools/call",
+  "params": {
+    "toolName": "weather.lookup",
+    "arguments": {
+      "city": "上海"
+    },
+    "role": "DEVELOPER"
+  }
+}
+```
+
+Success responses contain `jsonrpc`, the echoed `id`, and `result`. Error responses contain `jsonrpc`, the echoed `id`, and `error`.
+
+`tools/call` reuses the existing Tool invoke, RBAC PolicyService demo, Human Review, Trace Evidence, and Audit Log flow. HIGH risk calls return `PENDING_REVIEW`; dangerous requests can return `BLOCKED` without sandbox execution.
+
+JSON-RPC demo error codes:
+
+| Code | Message |
+| --- | --- |
+| `-32600` | `Invalid Request` |
+| `-32601` | `Method not found` |
+| `-32602` | `Invalid params` |
+| `-32000` | `Server error` |
+| `-32003` | `Forbidden` |
+
+The adapter currently supports HTTP POST only. It does not support stdio, SSE, full capabilities negotiation, or complete MCP compatibility. See [mcp-json-rpc-adapter.md](mcp-json-rpc-adapter.md).
+
 P5C adds paginated filtering on top of the H2 + JdbcTemplate repository layer. Frontend adapters still tolerate legacy array responses, but the paginated list endpoints now return `PageResponse`.
 
 `PageResponse<T>` shape:

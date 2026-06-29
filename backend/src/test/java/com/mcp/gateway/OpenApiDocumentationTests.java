@@ -22,7 +22,8 @@ class OpenApiDocumentationTests {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.openapi").exists())
                 .andExpect(jsonPath("$.info.title").value("MCP Tool Gateway Demo API"))
-                .andExpect(jsonPath("$.paths").isMap());
+                .andExpect(jsonPath("$.paths").isMap())
+                .andExpect(jsonPath("$.paths['/api/mcp/rpc']").exists());
 
         mockMvc.perform(get("/swagger-ui/index.html"))
                 .andExpect(status().isOk());

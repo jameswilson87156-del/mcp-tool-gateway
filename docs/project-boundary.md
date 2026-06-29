@@ -13,8 +13,9 @@
 - H2 + JdbcTemplate repositories、`schema.sql` 建表和 seed-on-empty demo 数据。
 - Trace、Review、Audit、Prompt、Resource 的统一 `PageResponse` 分页和本地筛选。
 - PolicyService 角色—动作检查与结构化 `403`。
+- HTTP `POST /api/mcp/rpc` MCP-style JSON-RPC adapter demo，支持四个 list/call methods 并复用现有 Tool invoke 治理链。
 - Vue 3 + TypeScript 开发者控制台，以及 Playwright 对真实本地页面的截图脚本。
-- 35 个 JUnit / MockMvc 后端测试，覆盖主要 API、OpenAPI、持久化、状态流转、分页和 Policy 边界。
+- 45 个 JUnit / MockMvc 后端测试，覆盖主要 API、JSON-RPC adapter、OpenAPI、持久化、状态流转、分页和 Policy 边界。
 
 ## Demo / Sandbox 能力
 
@@ -30,10 +31,11 @@
 | H2 persistence | 本机内存 demo 存储 | 高可用生产数据库方案 |
 | PageResponse | 对少量本地数据筛选切片 | 数据库级海量分页、全文检索或 Elasticsearch |
 | Trace / Audit | 可查询的 demo 证据 | OpenTelemetry、不可篡改审计或 SIEM |
+| JSON-RPC adapter | HTTP POST + 四个 MCP-style demo methods | 官方 MCP server、完整兼容、stdio/SSE 或 capabilities negotiation |
 
 ## 未实现能力
 
-- 完整 MCP 官方协议、JSON-RPC compatibility、capability negotiation 和标准 transport。
+- 完整 MCP 官方协议和 JSON-RPC compatibility、capability negotiation、stdio 与 SSE transport。
 - 真实 external tool adapter、凭据托管、网络隔离和执行容器。
 - OAuth、SSO、JWT、MFA、session、用户生命周期和可信角色分配。
 - 生产级 RBAC/ABAC、policy-as-code、资源级条件与 tenant isolation。
@@ -47,6 +49,7 @@
 ## 不夸大的表述规则
 
 - 使用“**MCP-style 工具网关 demo**”，不使用“完整 MCP server / 完整 MCP 协议实现”。
+- 使用“**MCP-style JSON-RPC adapter demo**”，不使用“fully MCP compatible / 官方 MCP server”。
 - 使用“**RBAC PolicyService demo**”，不使用“生产级权限平台”。
 - 使用“**sandbox Tool execution**”，不使用“已接入真实企业系统”。
 - 使用“**本地 H2 demo persistence**”，不使用“生产数据库架构”。
@@ -60,7 +63,7 @@
 以下全部属于未来工作，不是当前能力：
 
 - 将 H2 迁移到 MySQL / PostgreSQL，并增加 schema migration。
-- 增加真实 MCP JSON-RPC compatibility layer。
+- 用真实 MCP JSON-RPC compatibility layer、标准 transport 和 interoperability tests 替换有限的 HTTP adapter demo。
 - 为外部 Tool 建立 adapter contract、sandbox、secret injection 和网络策略。
 - 用 OAuth / SSO / JWT 和服务端 identity context 替换 demo header。
 - 引入 production-grade policy engine 和 policy-as-code。

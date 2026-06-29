@@ -2,7 +2,7 @@
 
 [![MCP Tool Gateway CI](https://github.com/jameswilson87156-del/mcp-tool-gateway/actions/workflows/ci.yml/badge.svg)](https://github.com/jameswilson87156-del/mcp-tool-gateway/actions/workflows/ci.yml)
 
-面向企业 AI Agent 的 MCP-style 工具接入网关，支持 Tool / Prompt / Resource 管理、Tool Schema、权限策略、Human Review、Trace Evidence、Audit Log、H2 持久化与 RBAC Policy demo。
+面向企业 AI Agent 的 MCP-style 工具接入网关，支持 Tool / Prompt / Resource 管理、Tool Schema、权限策略、Human Review、Trace Evidence、Audit Log、H2 持久化、RBAC Policy demo 与 MCP-style JSON-RPC adapter demo。
 
 > 当前定位：可运行、可测试、可截图复核的 portfolio demo / learning project。项目强调 Agent 调用工具时的治理与证据链，不宣称完整 MCP 协议兼容或生产就绪。
 
@@ -56,6 +56,7 @@
 - **PageResponse pagination**：为 Trace、Review、Audit、Prompt、Resource 列表提供统一分页和筛选响应。
 - **RBAC PolicyService demo**：用本地角色策略表演示敏感动作授权和结构化 `403`。
 - **Sandbox Tool execution**：提供可控的本地响应与 `db.query.readonly` 只读规则演示，不连接真实外部系统。
+- **MCP-style JSON-RPC adapter demo**：通过 `POST /api/mcp/rpc` 演示 `tools/list`、`tools/call`、`prompts/list`、`resources/list`，并复用现有 Policy、Review、Trace 与 Audit 流程。
 
 ## 技术栈
 
@@ -97,8 +98,22 @@ Base URL：`http://localhost:8080/api`
 | Resources | `GET/POST /resources`、`GET/PUT /resources/{id}`、publish、archive |
 | Audit Logs | `GET /audit-logs` |
 | RBAC demo | 敏感端点可用 `X-Demo-Role` 在本地测试 `ADMIN / DEVELOPER / REVIEWER / VIEWER` |
+| MCP-style JSON-RPC demo | `POST /mcp/rpc`，支持 `tools/list`、`tools/call`、`prompts/list`、`resources/list` |
 
 完整参数、分页结构、角色矩阵和错误响应见 [docs/API.md](docs/API.md)。
+
+JSON-RPC demo 请求示例：
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": "req_001",
+  "method": "tools/list",
+  "params": {}
+}
+```
+
+该入口只是基于 HTTP POST 的 MCP-style adapter，不支持 stdio、SSE 或完整 capabilities negotiation。详见 [docs/mcp-json-rpc-adapter.md](docs/mcp-json-rpc-adapter.md)。
 
 ## CI
 
@@ -186,7 +201,7 @@ npm run screenshots
 
 最近一次本地验收（2026-06-29）：
 
-- `mvn test`：passed，35 tests，0 failures，0 errors。
+- `mvn test`：passed，45 tests，0 failures，0 errors。
 - `npm run build`：passed，`vue-tsc --noEmit` 与 `vite build` 完成。
 - `npm run screenshots`：passed，六个页面由真实本地浏览器捕获。
 - `git diff --check`：passed。
@@ -196,7 +211,8 @@ npm run screenshots
 
 ## 项目边界
 
-- **MCP-style，不是完整 MCP 官方协议实现**，当前没有 MCP JSON-RPC compatibility layer。
+- **MCP-style，不是完整 MCP 官方协议实现**，当前只有有限的 HTTP JSON-RPC adapter demo，没有完整 MCP JSON-RPC compatibility layer。
+- **JSON-RPC 入口只是 MCP-style adapter demo**，不是官方 MCP server，也不代表完整 MCP 协议兼容；当前仅支持 HTTP POST 和四个 demo methods。
 - **RBAC PolicyService 是 demo，不是生产级权限系统**。
 - **`X-Demo-Role` 仅用于 demo/testing helper**，请求方可伪造，不能作为生产鉴权边界。
 - **Tool execution 是 demo/sandbox**，不执行真实外部系统的危险操作。
@@ -217,6 +233,7 @@ npm run screenshots
 - [项目边界](docs/project-boundary.md)
 - [后续路线图](docs/roadmap.md)
 - [本地与 Docker Compose 部署说明](docs/deployment.md)
+- [MCP-style JSON-RPC adapter demo](docs/mcp-json-rpc-adapter.md)
 - [Prompt / Resource 工作流](docs/prompt-resource.md)
 - [持久化设计](docs/persistence.md)
 - [RBAC Policy demo](docs/rbac-policy-demo.md)

@@ -16,12 +16,13 @@ This file is updated after local verification.
 
 Date: 2026-06-29
 
-- `mvn test`: passed. 35 tests, 0 failures, 0 errors. The OpenAPI test verified `/v3/api-docs` and `/swagger-ui/index.html`.
+- `mvn test`: passed. 45 tests, 0 failures, 0 errors. Ten JSON-RPC adapter tests cover lists, low/high/blocked Tool calls, invalid request/method/params, and Policy forbidden mapping. The OpenAPI test verifies `/api/mcp/rpc` is documented.
 - `mvn -B -DskipTests package`: passed. The executable `mcp-tool-gateway-0.1.0.jar` path used by the backend Dockerfile was generated successfully.
 - `npm run build`: passed. `vue-tsc --noEmit` and `vite build` completed.
+- GitHub Actions P7A run `28358408399`: passed. Backend tests and frontend build jobs both completed successfully before P7B work started.
 - `docker compose config`: not executed because the local machine does not have the `docker` command installed or available on `PATH` (`CommandNotFoundException`). The Compose file received a manual structure review; this is not reported as a successful Docker validation.
 - `docker compose build`: not executed for the same reason. No Docker build result is claimed.
-- `npm run screenshots`: not rerun for P7A because frontend UI and README screenshot paths did not change. The previous run passed: the script started the Spring Boot backend and Vite frontend, then captured real browser screenshots listed below.
+- `npm run screenshots`: not rerun for P7B because frontend UI and README screenshot paths did not change. The previous run passed: the script started the Spring Boot backend and Vite frontend, then captured real browser screenshots listed below.
 - `git diff --check`: passed. Git reported Windows line-ending normalization warnings only.
 - Security scan: passed. No API keys, `sk-` tokens, secrets, private keys, `.env`, tracked build outputs, H2 database files, `node_modules`, `dist`, `target`, or log files were found in the index.
 - Screenshots:
@@ -55,3 +56,4 @@ The captured page follows the B2 Tool Call Workbench direction:
 - P5C adds PageResponse pagination and local demo filtering for Trace, Review, Audit Log, Prompt, and Resource lists, plus a lightweight real Audit Log page.
 - P5D adds PolicyService-backed demo RBAC checks and structured `403` responses for sensitive actions without changing the visual direction.
 - P7A adds CI, local demo containers, and OpenAPI documentation without changing frontend pages or the MCP-style/demo boundaries.
+- P7B adds an HTTP-only MCP-style JSON-RPC adapter demo without changing frontend pages. It does not claim complete MCP compatibility, official transports, or production Tool execution.
