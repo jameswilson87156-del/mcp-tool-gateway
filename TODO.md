@@ -11,13 +11,15 @@
 - [x] P5C：PageResponse pagination、治理列表筛选、Audit Log 页面。
 - [x] P5D：RBAC PolicyService demo、敏感 API 检查、结构化 `403`。
 - [x] P6：GitHub README、简历证据、面试问答、项目边界和 roadmap 收口。
+- [x] P7A：GitHub Actions CI、Docker Compose、OpenAPI / Swagger 与一键启动文档。
 
-当前项目已具备 GitHub 简历展示条件：核心链路可运行，真实页面截图、测试结果、能力边界和面试证据均已归档。
+当前项目已推送 GitHub，并具备简历展示和基础工程化演示条件：核心链路、真实页面截图、自动化测试、CI、容器化启动、API 文档和能力边界均已归档。
 
 ## Recommended Next Steps
 
-- [ ] 创建 GitHub remote，并推送 `main`。
-- [ ] 可选：部署只读演示环境，并保持 demo/sandbox 标签可见。
+- [ ] 推送 P7A 后确认 GitHub Actions 的 backend / frontend jobs 均通过。
+- [ ] 可选：在具备 Docker Engine 的环境执行 Compose smoke test。
+- [ ] 可选：部署只读演示环境，并保持 demo/sandbox 和非生产部署标签可见。
 - [ ] 可选：仅在明确决定生产化后，新建独立 roadmap 分支逐项替换 demo 边界。
 
 不建议继续无边界堆叠功能。生产化工作应优先处理真实身份、数据库迁移、执行隔离、协议兼容和可观测性，详见 `docs/roadmap.md`。

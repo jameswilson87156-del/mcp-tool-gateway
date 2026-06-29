@@ -1,5 +1,7 @@
 # MCP Tool Gateway / 企业 Agent 工具网关
 
+[![MCP Tool Gateway CI](https://github.com/jameswilson87156-del/mcp-tool-gateway/actions/workflows/ci.yml/badge.svg)](https://github.com/jameswilson87156-del/mcp-tool-gateway/actions/workflows/ci.yml)
+
 面向企业 AI Agent 的 MCP-style 工具接入网关，支持 Tool / Prompt / Resource 管理、Tool Schema、权限策略、Human Review、Trace Evidence、Audit Log、H2 持久化与 RBAC Policy demo。
 
 > 当前定位：可运行、可测试、可截图复核的 portfolio demo / learning project。项目强调 Agent 调用工具时的治理与证据链，不宣称完整 MCP 协议兼容或生产就绪。
@@ -58,10 +60,11 @@
 ## 技术栈
 
 - Java 17、Spring Boot 3、Maven
-- JdbcTemplate、H2
+- JdbcTemplate、H2、springdoc OpenAPI / Swagger UI
 - JUnit 5、Spring MockMvc
 - Vue 3、Vite、TypeScript
-- Playwright screenshots
+- Nginx、Docker Compose
+- GitHub Actions、Playwright screenshots
 
 ## 架构与调用链
 
@@ -97,6 +100,15 @@ Base URL：`http://localhost:8080/api`
 
 完整参数、分页结构、角色矩阵和错误响应见 [docs/API.md](docs/API.md)。
 
+## CI
+
+GitHub Actions 在 push 或 pull request 到 `main` 时运行两项独立检查：
+
+- Java 17：`cd backend && mvn -B test`
+- Node 20：`cd frontend && npm ci && npm run build`
+
+工作流文件：`.github/workflows/ci.yml`。
+
 ## 本地运行
 
 后端：
@@ -116,6 +128,51 @@ npm run build
 npm run dev
 ```
 
+浏览器打开 `http://localhost:5173`。前端默认请求 `http://localhost:8080/api`。
+
+## Docker Compose 一键启动
+
+```bash
+docker compose up --build
+```
+
+- Frontend：`http://localhost:8088`
+- Backend API：`http://localhost:8080/api`
+- Swagger UI：`http://localhost:8080/swagger-ui/index.html`
+- OpenAPI JSON：`http://localhost:8080/v3/api-docs`
+
+停止容器：
+
+```bash
+docker compose down
+```
+
+Compose 默认仍使用 H2 内存 demo persistence；容器重建或重启后 demo 数据会重新初始化。它用于本地展示，不是生产部署方案。详见 [docs/deployment.md](docs/deployment.md)。
+
+## OpenAPI / Swagger
+
+启动 backend 后可访问：
+
+- Swagger UI：`http://localhost:8080/swagger-ui/index.html`
+- OpenAPI JSON：`http://localhost:8080/v3/api-docs`
+
+springdoc 仅扫描当前 `/api/**` REST demo endpoints。生成的文档描述现有 MCP-style demo API，不代表完整 MCP 官方协议或生产级 API contract。
+
+## 测试命令
+
+```bash
+cd backend
+mvn test
+
+cd ../frontend
+npm ci
+npm run build
+
+cd ..
+docker compose config
+git diff --check
+```
+
 生成真实浏览器截图：
 
 ```bash
@@ -129,7 +186,7 @@ npm run screenshots
 
 最近一次本地验收（2026-06-29）：
 
-- `mvn test`：passed，34 tests，0 failures，0 errors。
+- `mvn test`：passed，35 tests，0 failures，0 errors。
 - `npm run build`：passed，`vue-tsc --noEmit` 与 `vite build` 完成。
 - `npm run screenshots`：passed，六个页面由真实本地浏览器捕获。
 - `git diff --check`：passed。
@@ -148,6 +205,7 @@ npm run screenshots
 - **H2 是本地 demo persistence**，不是生产数据库方案。
 - **PageResponse 是 demo 数据分页**，当前不是数据库级生产分页、全文检索或 Elasticsearch。
 - **这不是无人值守自动执行系统**；高风险动作保留显式 Human Review。
+- **Docker Compose 是本地 demo 启动方式**，不包含生产级 HTTPS、WAF、身份系统、多租户或部署加固。
 - `docs/design/concepts` 只保存 **AI concept references**，不是运行截图；README 图片来自真实本地浏览器页面。
 
 集中边界说明见 [docs/project-boundary.md](docs/project-boundary.md)。生产化方向仅作为未来规划，见 [docs/roadmap.md](docs/roadmap.md)。
@@ -158,6 +216,7 @@ npm run screenshots
 - [面试问答](docs/interview-qa.md)
 - [项目边界](docs/project-boundary.md)
 - [后续路线图](docs/roadmap.md)
+- [本地与 Docker Compose 部署说明](docs/deployment.md)
 - [Prompt / Resource 工作流](docs/prompt-resource.md)
 - [持久化设计](docs/persistence.md)
 - [RBAC Policy demo](docs/rbac-policy-demo.md)

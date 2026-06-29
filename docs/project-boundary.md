@@ -14,7 +14,7 @@
 - Trace、Review、Audit、Prompt、Resource 的统一 `PageResponse` 分页和本地筛选。
 - PolicyService 角色—动作检查与结构化 `403`。
 - Vue 3 + TypeScript 开发者控制台，以及 Playwright 对真实本地页面的截图脚本。
-- 34 个 JUnit / MockMvc 后端测试，覆盖主要 API、持久化、状态流转、分页和 Policy 边界。
+- 35 个 JUnit / MockMvc 后端测试，覆盖主要 API、OpenAPI、持久化、状态流转、分页和 Policy 边界。
 
 ## Demo / Sandbox 能力
 
