@@ -11,6 +11,7 @@ MCP Tool Gateway P1 is a runnable demo project with:
 - P2 Tool Registry and Human Review Center pages.
 - P3 Trace Evidence governance center.
 - P4 Prompt Studio / Resource Library workspace.
+- P5A H2 + JdbcTemplate persistence layer.
 
 ## Visual Direction
 
@@ -29,6 +30,7 @@ Default entry is B2 Tool Call Workbench, not a traditional KPI dashboard. Keep t
 - RBAC demo only.
 - Tool execution is demo/sandbox only.
 - `db.query.readonly` is SELECT-only.
+- H2 persistence is local demo persistence, not a production database architecture.
 - Concept images are not runtime product screenshots.
 
 ## P2 Notes
@@ -50,4 +52,13 @@ Default entry is B2 Tool Call Workbench, not a traditional KPI dashboard. Keep t
 - Missing Prompt variables return structured validation errors instead of silently rendering.
 - `GET /api/resources` and `GET /api/resources/{id}` support Resource list/detail, previews, linked Tools, related Prompts, and recent reference summaries.
 - Prompt render records `AuditLogEntry`; Resource Library remains context resource management, not an enterprise knowledge graph.
-- Remaining work is persistence, edit/save flows, pagination, and stricter RBAC policy modeling.
+
+## P5A Notes
+
+- Core backend state now reads/writes through JdbcTemplate repositories under `backend/src/main/java/com/mcp/gateway/persistence`.
+- H2 tables are created from `backend/src/main/resources/schema.sql`.
+- `GatewayService` still owns business orchestration for Tool invoke, Human Review, Trace aggregation, Prompt render, and Resource detail.
+- Startup uses seed-on-empty for P1-P4-compatible demo data.
+- Existing API response shapes are preserved; list endpoints are not paginated yet.
+- `.data/`, `*.mv.db`, and `*.trace.db` are ignored and must not be committed.
+- Remaining work is Prompt/Resource edit-save flows, pagination, and stricter RBAC policy modeling.

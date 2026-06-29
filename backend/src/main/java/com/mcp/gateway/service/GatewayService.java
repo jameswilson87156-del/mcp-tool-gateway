@@ -4,21 +4,23 @@ import com.mcp.gateway.api.InvokeRequest;
 import com.mcp.gateway.api.PromptRenderRequest;
 import com.mcp.gateway.api.ReviewRequest;
 import com.mcp.gateway.model.*;
+import com.mcp.gateway.persistence.*;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class GatewayService {
-    private final Map<String, ToolDefinition> tools = new LinkedHashMap<>();
-    private final Map<String, ToolCallRecord> calls = new ConcurrentHashMap<>();
-    private final Map<String, ToolCallReview> reviews = new ConcurrentHashMap<>();
-    private final Map<String, List<TraceEvent>> traces = new ConcurrentHashMap<>();
-    private final List<PromptTemplate> prompts = new ArrayList<>();
-    private final List<ResourceDocument> resources = new ArrayList<>();
-    private final List<AuditLogEntry> auditLogs = Collections.synchronizedList(new ArrayList<>());
+    private final ToolRepository toolRepository;
+    private final PromptRepository promptRepository;
+    private final ResourceRepository resourceRepository;
+    private final ToolCallRepository toolCallRepository;
+    private final ReviewRepository reviewRepository;
+    private final TraceRepository traceRepository;
+    private final AuditLogRepository auditLogRepository;
+    private final UserRepository userRepository;
+    private final RolePolicyRepository rolePolicyRepository;
     private final UserAccount demoAdmin = new UserAccount(
             "usr_admin",
             "admin",
@@ -27,11 +29,27 @@ public class GatewayService {
             List.of("tool:*", "prompt:*", "resource:*", "review:*", "audit:read")
     );
 
-    public GatewayService() {
-        seedTools();
-        seedPrompts();
-        seedResources();
-        seedPendingReview();
+    public GatewayService(
+            ToolRepository toolRepository,
+            PromptRepository promptRepository,
+            ResourceRepository resourceRepository,
+            ToolCallRepository toolCallRepository,
+            ReviewRepository reviewRepository,
+            TraceRepository traceRepository,
+            AuditLogRepository auditLogRepository,
+            UserRepository userRepository,
+            RolePolicyRepository rolePolicyRepository
+    ) {
+        this.toolRepository = toolRepository;
+        this.promptRepository = promptRepository;
+        this.resourceRepository = resourceRepository;
+        this.toolCallRepository = toolCallRepository;
+        this.reviewRepository = reviewRepository;
+        this.traceRepository = traceRepository;
+        this.auditLogRepository = auditLogRepository;
+        this.userRepository = userRepository;
+        this.rolePolicyRepository = rolePolicyRepository;
+        seedIfEmpty();
     }
 
     public UserAccount login(String username) {
@@ -51,7 +69,7 @@ public class GatewayService {
     }
 
     public List<ToolDefinition> listTools() {
-        return tools.values().stream().map(this::withRecentCallCount).toList();
+        return toolRepository.findAll().stream().map(this::withRecentCallCount).toList();
     }
 
     public ToolDefinition getTool(String id) {
@@ -88,8 +106,8 @@ public class GatewayService {
             var record = new ToolCallRecord(callId, tool.id(), tool.name(), requester, tool.provider(), environment,
                     RiskLevel.BLOCKED, CallStatus.BLOCKED, requestParams, Map.of("blocked", true, "message", "local-rule fallback blocked this request"),
                     null, "90 ms", now, now);
-            calls.put(callId, record);
-            traces.put(callId, events);
+            toolCallRepository.save(record);
+            traceRepository.saveAll(events);
             audit(requester, "tool.invoke.blocked", "ToolCallRecord", callId, Map.of("tool", tool.id()));
             return record;
         }
@@ -105,9 +123,9 @@ public class GatewayService {
                     reviewId, "83 ms", now, now);
             var review = new ToolCallReview(reviewId, callId, tool.id(), tool.riskLevel(), CallStatus.PENDING_REVIEW,
                     null, "PENDING", "等待人工审批", now, now);
-            calls.put(callId, record);
-            reviews.put(reviewId, review);
-            traces.put(callId, events);
+            toolCallRepository.save(record);
+            reviewRepository.save(review);
+            traceRepository.saveAll(events);
             audit(requester, "tool.invoke.pending_review", "ToolCallReview", reviewId, Map.of("callId", callId));
             return record;
         }
@@ -120,30 +138,30 @@ public class GatewayService {
         events.add(trace(callId, "Audit Log", CallStatus.SUCCESS, "写入 Audit Log", "6 ms", Map.of("action", "tool.invoke.success")));
         var record = new ToolCallRecord(callId, tool.id(), tool.name(), requester, tool.provider(), environment,
                 tool.riskLevel(), CallStatus.SUCCESS, requestParams, response, null, "286 ms", now, now);
-        calls.put(callId, record);
-        traces.put(callId, events);
+        toolCallRepository.save(record);
+        traceRepository.saveAll(events);
         audit(requester, "tool.invoke.success", "ToolCallRecord", callId, Map.of("tool", tool.id()));
         return record;
     }
 
     public List<ToolCallRecord> listCalls() {
-        return calls.values().stream()
+        return toolCallRepository.findAll().stream()
                 .sorted(Comparator.comparing(ToolCallRecord::createdAt).reversed())
                 .toList();
     }
 
     public ToolCallRecord getCall(String id) {
-        return Optional.ofNullable(calls.get(id)).orElseThrow(() -> new NoSuchElementException("Tool call not found: " + id));
+        return toolCallRepository.findById(id).orElseThrow(() -> new NoSuchElementException("Tool call not found: " + id));
     }
 
     public List<TraceEvent> getTrace(String callId) {
-        return traces.getOrDefault(callId, List.of());
+        return traceRepository.findByCallId(callId);
     }
 
     public List<TraceSummary> listTraceSummaries(CallStatus status, RiskLevel riskLevel, String toolName, Boolean reviewRequired, String keyword) {
         var normalizedKeyword = keyword == null ? "" : keyword.trim().toLowerCase(Locale.ROOT);
         var normalizedTool = toolName == null ? "" : toolName.trim().toLowerCase(Locale.ROOT);
-        return calls.values().stream()
+        return toolCallRepository.findAll().stream()
                 .filter(call -> status == null || call.status() == status)
                 .filter(call -> riskLevel == null || call.riskLevel() == riskLevel)
                 .filter(call -> normalizedTool.isBlank() || call.toolName().toLowerCase(Locale.ROOT).contains(normalizedTool))
@@ -158,7 +176,7 @@ public class GatewayService {
         var callId = callIdFromTraceId(traceId);
         var call = getCall(callId);
         var tool = requireTool(call.toolId());
-        var review = call.reviewId() == null ? null : reviews.get(call.reviewId());
+        var review = call.reviewId() == null ? null : reviewRepository.findById(call.reviewId()).orElse(null);
         var relatedAuditLogs = relatedAuditLogs(call).stream()
                 .sorted(Comparator.comparing(AuditLogEntry::timestamp).reversed())
                 .toList();
@@ -192,7 +210,7 @@ public class GatewayService {
     }
 
     public List<ToolCallReview> listReviews() {
-        return reviews.values().stream()
+        return reviewRepository.findAll().stream()
                 .sorted(Comparator.comparing(ToolCallReview::createdAt).reversed())
                 .toList();
     }
@@ -205,9 +223,9 @@ public class GatewayService {
                 reviewer(request), "APPROVED", comment(request, "人工审批通过，执行 sandbox demo"), review.createdAt(), now);
         var tool = requireTool(review.toolId());
         var response = executeDemoTool(tool, call.request());
-        calls.put(call.id(), new ToolCallRecord(call.id(), call.toolId(), call.toolName(), call.requester(), call.provider(),
+        toolCallRepository.save(new ToolCallRecord(call.id(), call.toolId(), call.toolName(), call.requester(), call.provider(),
                 call.environment(), call.riskLevel(), CallStatus.SUCCESS, call.request(), response, id, "344 ms", call.createdAt(), now));
-        reviews.put(id, updated);
+        reviewRepository.save(updated);
         appendTrace(call.id(), "Human Review", CallStatus.APPROVED, "审批通过: " + updated.comment(), "20 ms", Map.of("reviewer", updated.reviewer()));
         appendTrace(call.id(), "Execute", CallStatus.SUCCESS, "审批后执行 sandbox demo Tool", "190 ms", Map.of("sandbox", true));
         audit(updated.reviewer(), "review.approve", "ToolCallReview", id, Map.of("callId", call.id()));
@@ -220,9 +238,9 @@ public class GatewayService {
         var now = Instant.now();
         var updated = new ToolCallReview(id, review.callId(), review.toolId(), review.riskLevel(), CallStatus.REJECTED,
                 reviewer(request), "REJECTED", comment(request, "人工审批拒绝，未执行 Tool"), review.createdAt(), now);
-        calls.put(call.id(), new ToolCallRecord(call.id(), call.toolId(), call.toolName(), call.requester(), call.provider(),
+        toolCallRepository.save(new ToolCallRecord(call.id(), call.toolId(), call.toolName(), call.requester(), call.provider(),
                 call.environment(), call.riskLevel(), CallStatus.REJECTED, call.request(), Map.of("rejected", true), id, call.latency(), call.createdAt(), now));
-        reviews.put(id, updated);
+        reviewRepository.save(updated);
         appendTrace(call.id(), "Human Review", CallStatus.REJECTED, "审批拒绝: " + updated.comment(), "18 ms", Map.of("reviewer", updated.reviewer()));
         audit(updated.reviewer(), "review.reject", "ToolCallReview", id, Map.of("callId", call.id()));
         return updated;
@@ -234,16 +252,16 @@ public class GatewayService {
         var now = Instant.now();
         var updated = new ToolCallReview(id, review.callId(), review.toolId(), review.riskLevel(), CallStatus.CHANGES_REQUESTED,
                 reviewer(request), "REQUEST_CHANGES", comment(request, "需要补充上下文或缩小权限范围"), review.createdAt(), now);
-        calls.put(call.id(), new ToolCallRecord(call.id(), call.toolId(), call.toolName(), call.requester(), call.provider(),
+        toolCallRepository.save(new ToolCallRecord(call.id(), call.toolId(), call.toolName(), call.requester(), call.provider(),
                 call.environment(), call.riskLevel(), CallStatus.CHANGES_REQUESTED, call.request(), Map.of("changesRequested", true), id, call.latency(), call.createdAt(), now));
-        reviews.put(id, updated);
+        reviewRepository.save(updated);
         appendTrace(call.id(), "Human Review", CallStatus.CHANGES_REQUESTED, "要求补充信息: " + updated.comment(), "18 ms", Map.of("reviewer", updated.reviewer()));
         audit(updated.reviewer(), "review.request_changes", "ToolCallReview", id, Map.of("callId", call.id()));
         return updated;
     }
 
     public List<PromptTemplate> listPrompts() {
-        return List.copyOf(prompts);
+        return promptRepository.findAll();
     }
 
     public PromptDetail getPromptDetail(String id) {
@@ -301,13 +319,13 @@ public class GatewayService {
                 prompt.usageCount() + 1,
                 prompt.templateContent()
         );
-        prompts.set(promptIndex(prompt.id()), updatedPrompt);
+        promptRepository.save(updatedPrompt);
         audit(actor, "prompt.render.success", "PromptTemplate", prompt.id(), Map.of("variables", variables.keySet(), "sandbox", true));
         return new PromptRenderResponse(prompt.id(), rendered, true, List.of(), variables, now.toString());
     }
 
     public List<ResourceDocument> listResources() {
-        return List.copyOf(resources);
+        return resourceRepository.findAll();
     }
 
     public ResourceDetail getResourceDetail(String id) {
@@ -325,18 +343,19 @@ public class GatewayService {
     }
 
     public List<AuditLogEntry> listAuditLogs() {
-        return auditLogs.stream()
+        return auditLogRepository.findAll().stream()
                 .sorted(Comparator.comparing(AuditLogEntry::timestamp).reversed())
                 .toList();
     }
 
     public Map<String, Object> dashboardStats() {
-        var pending = calls.values().stream().filter(c -> c.status() == CallStatus.PENDING_REVIEW).count();
-        var blocked = calls.values().stream().filter(c -> c.status() == CallStatus.BLOCKED).count();
+        var calls = toolCallRepository.findAll();
+        var pending = calls.stream().filter(c -> c.status() == CallStatus.PENDING_REVIEW).count();
+        var blocked = calls.stream().filter(c -> c.status() == CallStatus.BLOCKED).count();
         return Map.of(
-                "toolCount", tools.size(),
-                "promptCount", prompts.size(),
-                "resourceCount", resources.size(),
+                "toolCount", toolRepository.count(),
+                "promptCount", promptRepository.count(),
+                "resourceCount", resourceRepository.count(),
                 "pendingReviews", pending,
                 "blockedCalls", blocked,
                 "providerStatus", "12/12 正常",
@@ -345,38 +364,25 @@ public class GatewayService {
     }
 
     private ToolDefinition requireTool(String id) {
-        return Optional.ofNullable(tools.get(id)).orElseThrow(() -> new NoSuchElementException("Tool not found: " + id));
+        return toolRepository.findById(id).orElseThrow(() -> new NoSuchElementException("Tool not found: " + id));
     }
 
     private ToolCallReview requireReview(String id) {
-        return Optional.ofNullable(reviews.get(id)).orElseThrow(() -> new NoSuchElementException("Review not found: " + id));
+        return reviewRepository.findById(id).orElseThrow(() -> new NoSuchElementException("Review not found: " + id));
     }
 
     private PromptTemplate requirePrompt(String id) {
-        return prompts.stream()
-                .filter(prompt -> prompt.id().equals(id))
-                .findFirst()
+        return promptRepository.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("Prompt not found: " + id));
     }
 
-    private int promptIndex(String id) {
-        for (int i = 0; i < prompts.size(); i++) {
-            if (prompts.get(i).id().equals(id)) {
-                return i;
-            }
-        }
-        throw new NoSuchElementException("Prompt not found: " + id);
-    }
-
     private ResourceDocument requireResource(String id) {
-        return resources.stream()
-                .filter(resource -> resource.id().equals(id))
-                .findFirst()
+        return resourceRepository.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("Resource not found: " + id));
     }
 
     private void appendTrace(String callId, String step, CallStatus status, String message, String latency, Map<String, Object> evidence) {
-        traces.computeIfAbsent(callId, ignored -> new ArrayList<>()).add(trace(callId, step, status, message, latency, evidence));
+        traceRepository.save(trace(callId, step, status, message, latency, evidence));
     }
 
     private TraceEvent trace(String callId, String step, CallStatus status, String message, String latency, Map<String, Object> evidence) {
@@ -384,7 +390,7 @@ public class GatewayService {
     }
 
     private void audit(String actor, String action, String targetType, String targetId, Map<String, Object> metadata) {
-        auditLogs.add(new AuditLogEntry("aud_" + shortId(), actor, action, targetType, targetId, metadata, Instant.now()));
+        auditLogRepository.save(new AuditLogEntry("aud_" + shortId(), actor, action, targetType, targetId, metadata, Instant.now()));
     }
 
     private String shortId() {
@@ -428,11 +434,11 @@ public class GatewayService {
         if (traceId.startsWith("trace_")) {
             var suffix = traceId.substring("trace_".length());
             var possibleCallId = "call_" + suffix;
-            if (calls.containsKey(possibleCallId)) {
+            if (toolCallRepository.findById(possibleCallId).isPresent()) {
                 return possibleCallId;
             }
         }
-        if (calls.containsKey(traceId)) {
+        if (toolCallRepository.findById(traceId).isPresent()) {
             return traceId;
         }
         throw new NoSuchElementException("Trace not found: " + traceId);
@@ -442,13 +448,11 @@ public class GatewayService {
         if (call.reviewId() == null) {
             return isReviewRequired(call) ? call.status() : CallStatus.SUCCESS;
         }
-        var review = reviews.get(call.reviewId());
-        return review == null ? call.status() : review.status();
+        return reviewRepository.findById(call.reviewId()).map(ToolCallReview::status).orElse(call.status());
     }
 
     private boolean isReviewRequired(ToolCallRecord call) {
-        var tool = tools.get(call.toolId());
-        return tool != null && tool.approvalRequired();
+        return toolRepository.findById(call.toolId()).map(ToolDefinition::approvalRequired).orElse(false);
     }
 
     private boolean fallbackUsed(ToolCallRecord call) {
@@ -487,7 +491,7 @@ public class GatewayService {
     }
 
     private List<AuditLogEntry> relatedAuditLogs(ToolCallRecord call) {
-        return auditLogs.stream()
+        return auditLogRepository.findAll().stream()
                 .filter(log -> log.targetId().equals(call.id())
                         || (call.reviewId() != null && log.targetId().equals(call.reviewId()))
                         || String.valueOf(log.metadata().getOrDefault("callId", "")).equals(call.id()))
@@ -495,7 +499,7 @@ public class GatewayService {
     }
 
     private List<AuditLogEntry> relatedContentAuditLogs(String targetType, String targetId) {
-        return auditLogs.stream()
+        return auditLogRepository.findAll().stream()
                 .filter(log -> log.targetType().equals(targetType) && log.targetId().equals(targetId))
                 .sorted(Comparator.comparing(AuditLogEntry::timestamp).reversed())
                 .toList();
@@ -535,7 +539,7 @@ public class GatewayService {
     }
 
     private ToolDefinition withRecentCallCount(ToolDefinition tool) {
-        var count = (int) calls.values().stream().filter(call -> call.toolId().equals(tool.id())).count();
+        var count = toolCallRepository.countByToolId(tool.id());
         return new ToolDefinition(
                 tool.id(),
                 tool.name(),
@@ -616,7 +620,7 @@ public class GatewayService {
                 "required", required,
                 "properties", properties
         );
-        tools.put(id, new ToolDefinition(
+        toolRepository.save(new ToolDefinition(
                 id,
                 name,
                 description,
@@ -638,9 +642,49 @@ public class GatewayService {
         return new ToolParameterSchema(name, type, required, description, example);
     }
 
+    public void seedIfEmpty() {
+        if (userRepository.count() == 0) {
+            seedDemoUsers();
+        }
+        if (rolePolicyRepository.count() == 0) {
+            seedRolePolicies();
+        }
+        if (toolRepository.count() > 0) {
+            return;
+        }
+        seedTools();
+        seedPrompts();
+        seedResources();
+        seedPendingReview();
+    }
+
+    private void seedDemoUsers() {
+        userRepository.save(demoAdmin);
+        userRepository.save(new UserAccount("usr_developer", "developer", "Demo Developer", UserRole.DEVELOPER,
+                List.of("tool:read", "tool:invoke", "prompt:read", "resource:read", "trace:read")));
+        userRepository.save(new UserAccount("usr_reviewer", "reviewer.li", "审核员李", UserRole.REVIEWER,
+                List.of("tool:read", "review:*", "trace:read", "audit:read")));
+        userRepository.save(new UserAccount("usr_viewer", "viewer", "只读观察员", UserRole.VIEWER,
+                List.of("tool:read", "prompt:read", "resource:read", "trace:read")));
+    }
+
+    private void seedRolePolicies() {
+        for (String action : List.of("TOOL_INVOKE", "TOOL_MANAGE", "PROMPT_EDIT", "PROMPT_PUBLISH", "RESOURCE_EDIT",
+                "RESOURCE_PUBLISH", "REVIEW_DECIDE", "TRACE_VIEW", "AUDIT_VIEW", "SETTINGS_MANAGE")) {
+            rolePolicyRepository.save(UserRole.ADMIN, action, true);
+        }
+        for (String action : List.of("TOOL_INVOKE", "TRACE_VIEW")) {
+            rolePolicyRepository.save(UserRole.DEVELOPER, action, true);
+        }
+        for (String action : List.of("REVIEW_DECIDE", "TRACE_VIEW", "AUDIT_VIEW")) {
+            rolePolicyRepository.save(UserRole.REVIEWER, action, true);
+        }
+        rolePolicyRepository.save(UserRole.VIEWER, "TRACE_VIEW", true);
+    }
+
     private void seedPrompts() {
         var now = Instant.now().minusSeconds(2800).toString();
-        prompts.add(new PromptTemplate(
+        promptRepository.save(new PromptTemplate(
                 "prompt_customer_summary",
                 "customer-support.summary",
                 "根据客户、政策文档和区域语言生成结构化客服摘要。",
@@ -660,7 +704,7 @@ public class GatewayService {
                         保持审计友好，不要编造未提供事实。
                         """
         ));
-        prompts.add(new PromptTemplate(
+        promptRepository.save(new PromptTemplate(
                 "prompt_invoice_review",
                 "finance.invoice.review",
                 "检查发票字段并标注需要 Human Review 的审查原因。",
@@ -681,7 +725,7 @@ public class GatewayService {
     }
 
     private void seedResources() {
-        resources.add(new ResourceDocument(
+        resourceRepository.save(new ResourceDocument(
                 "res_policy_docs",
                 "policy-docs",
                 "DOCUMENT",
@@ -701,7 +745,7 @@ public class GatewayService {
                         """,
                 List.of("prompt_customer_summary")
         ));
-        resources.add(new ResourceDocument(
+        resourceRepository.save(new ResourceDocument(
                 "res_customer_schema",
                 "customer-db-schema",
                 "DB_SCHEMA",

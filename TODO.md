@@ -2,10 +2,10 @@
 
 ## P5 Candidates
 
-- Add persistent storage for demo records.
 - Add pagination for larger Trace, Review, and Audit Log datasets.
 - Add a stricter RBAC policy model.
 - Add edit/save workflows for Prompt and Resource records.
+- Add optional local H2 file profile documentation or scripts for longer manual testing.
 
 ## Out Of Scope For P1
 

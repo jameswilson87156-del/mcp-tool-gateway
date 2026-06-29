@@ -21,9 +21,10 @@ Tool selection -> JSON parameters -> sandbox invocation -> response preview -> P
 ## Tech Stack
 
 - Backend: Spring Boot 3, Java 17, Maven.
+- Persistence: H2 + JdbcTemplate repository layer for local demo data.
 - Frontend: Vue 3, Vite, TypeScript.
 - Screenshots: Playwright.
-- Data: in-memory demo/sandbox data.
+- Data: H2-backed demo/sandbox data with centralized frontend fallback.
 
 ## Implemented
 
@@ -39,6 +40,7 @@ Tool selection -> JSON parameters -> sandbox invocation -> response preview -> P
 - Human Review Center page for pending high-risk Tool Call review, approve/reject/request-changes actions, Trace Evidence, and Audit Log context.
 - Trace Evidence governance center with filters, Trace list, timeline drilldown, step evidence, JSON evidence, and Audit Evidence.
 - Prompt Studio / Resource Library workspace for Prompt variables, demo/sandbox render, Resource previews, Tool bindings, and usage/audit evidence.
+- P5A H2 + JdbcTemplate persistence for Tools, Prompts, Resources, Tool Calls, Reviews, Trace Events, Audit Logs, demo users, and role policy demo rows.
 
 ## Boundaries
 
@@ -50,6 +52,7 @@ Tool selection -> JSON parameters -> sandbox invocation -> response preview -> P
 - Human Review is an explicit approval loop; this project does not claim unattended production execution.
 - Prompt render is demo/sandbox behavior.
 - Resource Library is context resource management, not an enterprise knowledge graph.
+- H2 persistence is a local demo persistence layer, not a production database architecture.
 
 ## Design References
 
@@ -75,6 +78,8 @@ npm run screenshots
 ```
 
 The frontend calls `http://localhost:8080/api` first. If the backend is unavailable, it uses a clearly labeled centralized demo fallback from `frontend/src/data/demo.ts`.
+
+By default the backend uses H2 in-memory storage and seeds demo data when the tables are empty. Local H2 file storage can be configured for development, but database files under `.data/`, `*.mv.db`, and `*.trace.db` must not be committed.
 
 ## Key API
 

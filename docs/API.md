@@ -2,6 +2,8 @@
 
 Base URL: `http://localhost:8080/api`
 
+P5A keeps the existing response shapes unchanged while moving core data behind an H2 + JdbcTemplate repository layer. List endpoints still return arrays in this phase; pagination is intentionally deferred.
+
 ## Auth
 
 - `POST /auth/login`

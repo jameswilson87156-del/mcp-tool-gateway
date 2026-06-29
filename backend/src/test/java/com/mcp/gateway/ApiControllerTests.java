@@ -5,7 +5,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
+import com.mcp.gateway.service.GatewayService;
 
 import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -16,6 +18,57 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class ApiControllerTests {
     @Autowired
     private MockMvc mockMvc;
+    @Autowired
+    private JdbcTemplate jdbc;
+    @Autowired
+    private GatewayService gateway;
+
+    @Test
+    void seedsPersistentDemoDataOnStartup() {
+        org.assertj.core.api.Assertions.assertThat(countRows("tools")).isGreaterThanOrEqualTo(6);
+        org.assertj.core.api.Assertions.assertThat(countRows("prompts")).isGreaterThanOrEqualTo(2);
+        org.assertj.core.api.Assertions.assertThat(countRows("resources")).isGreaterThanOrEqualTo(2);
+        org.assertj.core.api.Assertions.assertThat(countRows("demo_users")).isGreaterThanOrEqualTo(4);
+        org.assertj.core.api.Assertions.assertThat(countRows("role_policies")).isGreaterThanOrEqualTo(1);
+    }
+
+    @Test
+    void seedIfEmptyDoesNotDuplicateMainDemoData() {
+        var toolCount = countRows("tools");
+        var promptCount = countRows("prompts");
+        var resourceCount = countRows("resources");
+
+        gateway.seedIfEmpty();
+
+        org.assertj.core.api.Assertions.assertThat(countRows("tools")).isEqualTo(toolCount);
+        org.assertj.core.api.Assertions.assertThat(countRows("prompts")).isEqualTo(promptCount);
+        org.assertj.core.api.Assertions.assertThat(countRows("resources")).isEqualTo(resourceCount);
+    }
+
+    @Test
+    void lowRiskInvokePersistsCallTraceAndAuditRows() throws Exception {
+        var callCount = countRows("tool_calls");
+        var traceCount = countRows("trace_events");
+        var auditCount = countRows("audit_logs");
+
+        mockMvc.perform(post("/api/tools/weather.lookup/invoke")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "environment": "production",
+                                  "requester": "developer",
+                                  "parameters": {
+                                    "city": "上海"
+                                  }
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("SUCCESS"));
+
+        org.assertj.core.api.Assertions.assertThat(countRows("tool_calls")).isGreaterThan(callCount);
+        org.assertj.core.api.Assertions.assertThat(countRows("trace_events")).isGreaterThan(traceCount);
+        org.assertj.core.api.Assertions.assertThat(countRows("audit_logs")).isGreaterThan(auditCount);
+    }
 
     @Test
     void listsDemoTools() throws Exception {
@@ -235,5 +288,10 @@ class ApiControllerTests {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("BLOCKED"))
                 .andExpect(jsonPath("$.response.blocked").value(true));
+    }
+
+    private long countRows(String table) {
+        Long count = jdbc.queryForObject("select count(*) from " + table, Long.class);
+        return count == null ? 0 : count;
     }
 }
