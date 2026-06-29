@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import BindingSummaryPanel from '../components/BindingSummaryPanel.vue'
+import PaginationControls from '../components/PaginationControls.vue'
 import PromptActionBar from '../components/PromptActionBar.vue'
 import PromptEditDrawer from '../components/PromptEditDrawer.vue'
 import PromptEditorPanel from '../components/PromptEditorPanel.vue'
@@ -33,11 +34,15 @@ import {
 } from '../services/api'
 import type {
   PromptDetail,
+  PageResponse,
   PromptRenderResponse,
+  PromptStatus,
   PromptTemplate,
   PromptUpsertInput,
   ResourceDetail,
   ResourceDocument,
+  ResourceStatus,
+  ResourceType,
   ResourceUpsertInput,
   ToolDefinition
 } from '../types'
@@ -47,6 +52,14 @@ const props = defineProps<{ initialTab: 'prompt' | 'resource' }>()
 const activeTab = ref<'prompt' | 'resource' | 'binding' | 'usage'>(props.initialTab)
 const prompts = ref<PromptTemplate[]>([])
 const resources = ref<ResourceDocument[]>([])
+const promptPage = ref<PageResponse<PromptTemplate>>({ items: [], page: 0, size: 6, total: 0, totalPages: 0 })
+const resourcePage = ref<PageResponse<ResourceDocument>>({ items: [], page: 0, size: 6, total: 0, totalPages: 0 })
+const promptKeyword = ref('')
+const promptStatus = ref<'ALL' | PromptStatus>('ALL')
+const promptCategory = ref('')
+const resourceKeyword = ref('')
+const resourceStatus = ref<'ALL' | ResourceStatus>('ALL')
+const resourceType = ref<'ALL' | ResourceType>('ALL')
 const tools = ref<ToolDefinition[]>([])
 const selectedPrompt = ref<PromptTemplate | null>(null)
 const selectedResource = ref<ResourceDocument | null>(null)
@@ -67,6 +80,7 @@ const promptDrawerOpen = ref(false)
 const promptDrawerMode = ref<'create' | 'edit'>('edit')
 const resourceDrawerOpen = ref(false)
 const resourceDrawerMode = ref<'create' | 'edit'>('edit')
+const listPageSize = 6
 
 const selectedPromptId = computed(() => selectedPrompt.value?.id ?? '')
 const selectedResourceId = computed(() => selectedResource.value?.id ?? '')
@@ -83,9 +97,15 @@ onMounted(loadWorkspace)
 async function loadWorkspace() {
   loading.value = true
   try {
-    const [promptResult, resourceResult, toolResult] = await Promise.all([getPrompts(), getResources(), getTools()])
-    prompts.value = promptResult.data
-    resources.value = resourceResult.data
+    const [promptResult, resourceResult, toolResult] = await Promise.all([
+      getPrompts(promptListQuery()),
+      getResources(resourceListQuery()),
+      getTools()
+    ])
+    promptPage.value = promptResult.data
+    resourcePage.value = resourceResult.data
+    prompts.value = promptResult.data.items
+    resources.value = resourceResult.data.items
     tools.value = toolResult.data
     source.value = [promptResult.source, resourceResult.source, toolResult.source].includes('demo-fallback') ? 'demo-fallback' : 'api'
     selectedPrompt.value = prompts.value[0] ?? null
@@ -97,8 +117,9 @@ async function loadWorkspace() {
 }
 
 async function refreshPromptSelection(promptId: string) {
-  const promptResult = await getPrompts()
-  prompts.value = promptResult.data
+  const promptResult = await getPrompts(promptListQuery())
+  promptPage.value = promptResult.data
+  prompts.value = promptResult.data.items
   selectedPrompt.value = prompts.value.find((prompt) => prompt.id === promptId) ?? prompts.value[0] ?? null
   if (selectedPrompt.value) {
     const detailResult = await getPromptDetail(selectedPrompt.value.id)
@@ -108,8 +129,9 @@ async function refreshPromptSelection(promptId: string) {
 }
 
 async function refreshResourceSelection(resourceId: string) {
-  const resourceResult = await getResources()
-  resources.value = resourceResult.data
+  const resourceResult = await getResources(resourceListQuery())
+  resourcePage.value = resourceResult.data
+  resources.value = resourceResult.data.items
   selectedResource.value = resources.value.find((resource) => resource.id === resourceId) ?? resources.value[0] ?? null
   if (selectedResource.value) {
     const detailResult = await getResourceDetail(selectedResource.value.id)
@@ -197,6 +219,9 @@ async function savePromptDraft(payload: PromptUpsertInput) {
     promptDetail.value = result.data
     selectedPrompt.value = result.data.prompt
     source.value = result.source
+    if (promptDrawerMode.value === 'create') {
+      promptPage.value = { ...promptPage.value, page: 0 }
+    }
     await refreshPromptSelection(result.data.prompt.id)
     promptDrawerOpen.value = false
     setSaveStatus('Prompt 草稿已保存。', 'success')
@@ -258,6 +283,9 @@ async function saveResourceDraft(payload: ResourceUpsertInput) {
     resourceDetail.value = result.data
     selectedResource.value = result.data.resource
     source.value = result.source
+    if (resourceDrawerMode.value === 'create') {
+      resourcePage.value = { ...resourcePage.value, page: 0 }
+    }
     await refreshResourceSelection(result.data.resource.id)
     resourceDrawerOpen.value = false
     setSaveStatus('Resource 草稿已保存。', 'success')
@@ -309,6 +337,46 @@ function messageFromError(error: unknown) {
   return error instanceof Error ? error.message : '操作失败，请稍后重试。'
 }
 
+function promptListQuery() {
+  return {
+    page: promptPage.value.page,
+    size: listPageSize,
+    keyword: promptKeyword.value,
+    status: promptStatus.value,
+    category: promptCategory.value
+  }
+}
+
+function resourceListQuery() {
+  return {
+    page: resourcePage.value.page,
+    size: listPageSize,
+    keyword: resourceKeyword.value,
+    status: resourceStatus.value,
+    type: resourceType.value
+  }
+}
+
+async function changePromptPage(page: number) {
+  promptPage.value = { ...promptPage.value, page }
+  await refreshPromptSelection(selectedPromptId.value)
+}
+
+async function applyPromptFilters() {
+  promptPage.value = { ...promptPage.value, page: 0 }
+  await refreshPromptSelection(selectedPromptId.value)
+}
+
+async function changeResourcePage(page: number) {
+  resourcePage.value = { ...resourcePage.value, page }
+  await refreshResourceSelection(selectedResourceId.value)
+}
+
+async function applyResourceFilters() {
+  resourcePage.value = { ...resourcePage.value, page: 0 }
+  await refreshResourceSelection(selectedResourceId.value)
+}
+
 function sampleVariables(variables: string[]) {
   const samples: Record<string, unknown> = {
     customer_id: 'CUST-202405-000123',
@@ -332,7 +400,7 @@ function sampleVariables(variables: string[]) {
       </div>
       <div class="boundary-panel">
         <span>{{ source === 'api' ? '后端 API 已连接' : 'demo fallback 已启用' }}</span>
-        <strong>{{ prompts.length }} Prompts · {{ resources.length }} Resources</strong>
+        <strong>{{ promptPage.total }} Prompts · {{ resourcePage.total }} Resources</strong>
       </div>
     </header>
 
@@ -349,7 +417,20 @@ function sampleVariables(variables: string[]) {
     <template v-else-if="activeTab === 'prompt'">
       <PromptActionBar :detail="promptDetail" :saving="saving" @new="openNewPrompt" @edit="openEditPrompt" @publish="handlePublishPrompt" @archive="handleArchivePrompt" />
       <section class="prompt-workspace-grid">
-        <PromptListPanel :prompts="prompts" :selected-prompt-id="selectedPromptId" @select="selectPrompt" />
+        <aside class="paginated-list-stack">
+          <div class="compact-filter-row">
+            <input v-model="promptKeyword" placeholder="搜索 Prompt" @input="applyPromptFilters" />
+            <select v-model="promptStatus" @change="applyPromptFilters">
+              <option value="ALL">Status: 全部</option>
+              <option value="DRAFT">DRAFT</option>
+              <option value="ACTIVE">ACTIVE</option>
+              <option value="ARCHIVED">ARCHIVED</option>
+            </select>
+            <input v-model="promptCategory" placeholder="Category" @input="applyPromptFilters" />
+          </div>
+          <PromptListPanel :prompts="prompts" :selected-prompt-id="selectedPromptId" @select="selectPrompt" />
+          <PaginationControls :page="promptPage" @change="changePromptPage" />
+        </aside>
         <PromptEditorPanel :detail="promptDetail" />
         <aside class="prompt-render-stack">
           <PromptVariablePanel v-model="variableJson" :parse-error="parseError" :loading="rendering" @render="handleRender" />
@@ -362,7 +443,28 @@ function sampleVariables(variables: string[]) {
     <template v-else-if="activeTab === 'resource'">
       <ResourceActionBar :detail="resourceDetail" :saving="saving" @new="openNewResource" @edit="openEditResource" @publish="handlePublishResource" @archive="handleArchiveResource" />
       <section class="prompt-workspace-grid">
-        <ResourceListPanel :resources="resources" :selected-resource-id="selectedResourceId" @select="selectResource" />
+        <aside class="paginated-list-stack">
+          <div class="compact-filter-row">
+            <input v-model="resourceKeyword" placeholder="搜索 Resource" @input="applyResourceFilters" />
+            <select v-model="resourceStatus" @change="applyResourceFilters">
+              <option value="ALL">Status: 全部</option>
+              <option value="DRAFT">DRAFT</option>
+              <option value="PUBLISHED">PUBLISHED</option>
+              <option value="SYNCED">SYNCED</option>
+              <option value="ARCHIVED">ARCHIVED</option>
+            </select>
+            <select v-model="resourceType" @change="applyResourceFilters">
+              <option value="ALL">Type: 全部</option>
+              <option value="DOCUMENT">DOCUMENT</option>
+              <option value="API_SPEC">API_SPEC</option>
+              <option value="DB_SCHEMA">DB_SCHEMA</option>
+              <option value="BUSINESS_RULE">BUSINESS_RULE</option>
+              <option value="POLICY">POLICY</option>
+            </select>
+          </div>
+          <ResourceListPanel :resources="resources" :selected-resource-id="selectedResourceId" @select="selectResource" />
+          <PaginationControls :page="resourcePage" @change="changeResourcePage" />
+        </aside>
         <ResourceDetailPanel :detail="resourceDetail" />
         <aside class="prompt-render-stack">
           <ResourcePreviewPanel :detail="resourceDetail" />

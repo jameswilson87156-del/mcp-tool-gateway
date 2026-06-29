@@ -2,7 +2,6 @@
 
 ## P5 Candidates
 
-- Add pagination for larger Trace, Review, and Audit Log datasets.
 - Add a stricter RBAC policy model.
 - Add optional local H2 file profile documentation or scripts for longer manual testing.
 

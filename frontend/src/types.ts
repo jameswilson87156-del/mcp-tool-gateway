@@ -105,6 +105,45 @@ export interface TraceFilters {
   toolName: string
 }
 
+export interface PageResponse<T> {
+  items: T[]
+  page: number
+  size: number
+  total: number
+  totalPages: number
+}
+
+export interface PageQuery {
+  page?: number
+  size?: number
+}
+
+export interface ReviewFilters extends PageQuery {
+  status?: 'ALL' | CallStatus
+  riskLevel?: 'ALL' | RiskLevel
+  toolName?: string
+  keyword?: string
+}
+
+export interface AuditLogFilters extends PageQuery {
+  action?: string
+  actor?: string
+  target?: string
+  keyword?: string
+}
+
+export interface PromptListFilters extends PageQuery {
+  keyword?: string
+  status?: 'ALL' | PromptStatus
+  category?: string
+}
+
+export interface ResourceListFilters extends PageQuery {
+  keyword?: string
+  status?: 'ALL' | ResourceStatus
+  type?: 'ALL' | ResourceType
+}
+
 export interface ToolCallReview {
   id: string
   callId: string

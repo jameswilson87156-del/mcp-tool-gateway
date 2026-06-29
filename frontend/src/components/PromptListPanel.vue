@@ -31,6 +31,10 @@ defineEmits<{ select: [prompt: PromptTemplate] }>()
           <small>usage</small>
         </span>
       </button>
+      <div v-if="!prompts.length" class="empty-state">
+        <strong>没有匹配的 Prompt</strong>
+        <p>调整 Status、Category 或 keyword，或新建一个 Prompt 草稿。</p>
+      </div>
     </div>
   </section>
 </template>

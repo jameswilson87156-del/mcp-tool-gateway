@@ -31,6 +31,10 @@ defineEmits<{ select: [resource: ResourceDocument] }>()
           <small>refs</small>
         </span>
       </button>
+      <div v-if="!resources.length" class="empty-state">
+        <strong>没有匹配的 Resource</strong>
+        <p>调整 Status、Type 或 keyword，或新建一个 Resource 草稿。</p>
+      </div>
     </div>
   </section>
 </template>

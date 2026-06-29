@@ -14,6 +14,7 @@ MCP Tool Gateway P1 is a runnable demo project with:
 - P5A H2 + JdbcTemplate persistence layer.
 - P5B Prompt / Resource editing workflow.
 - UI polish for the admin avatar and demo user menu.
+- P5C paginated filtering for governance lists and a lightweight Audit Log page.
 
 ## Visual Direction
 
@@ -33,6 +34,7 @@ Default entry is B2 Tool Call Workbench, not a traditional KPI dashboard. Keep t
 - Tool execution is demo/sandbox only.
 - `db.query.readonly` is SELECT-only.
 - H2 persistence is local demo persistence, not a production database architecture.
+- P5C filters are local demo H2 filters, not production search or Elasticsearch.
 - Concept images are not runtime product screenshots.
 
 ## P2 Notes
@@ -61,9 +63,9 @@ Default entry is B2 Tool Call Workbench, not a traditional KPI dashboard. Keep t
 - H2 tables are created from `backend/src/main/resources/schema.sql`.
 - `GatewayService` still owns business orchestration for Tool invoke, Human Review, Trace aggregation, Prompt render, and Resource detail.
 - Startup uses seed-on-empty for P1-P4-compatible demo data.
-- Existing API response shapes are preserved; list endpoints are not paginated yet.
+- P5C list endpoints use `PageResponse<T>` for Trace, Review, Audit Log, Prompt, and Resource lists; frontend adapters still tolerate legacy arrays.
 - `.data/`, `*.mv.db`, and `*.trace.db` are ignored and must not be committed.
-- Remaining work is pagination, optional local H2 file profile documentation, and stricter RBAC policy modeling.
+- Remaining work is optional local H2 file profile documentation and stricter RBAC policy modeling.
 
 ## P5B Notes
 
@@ -74,3 +76,12 @@ Default entry is B2 Tool Call Workbench, not a traditional KPI dashboard. Keep t
 - Prompt publish sets status to `ACTIVE`; Resource publish sets status to `PUBLISHED`; archive sets status to `ARCHIVED`.
 - Prompt / Resource editing remains a local demo governance workflow, not a real enterprise configuration center.
 - The top-right user menu reads `/api/auth/me` when available and falls back to centralized demo user data. It is not a real account system and sign out is disabled in demo.
+
+## P5C Notes
+
+- `GET /api/traces`, `/api/reviews`, `/api/audit-logs`, `/api/prompts`, and `/api/resources` return `PageResponse<T>`.
+- `page` starts at `0`; default `size` is `10`; maximum `size` is `50`.
+- Frontend `api.ts` converts legacy arrays and demo fallback arrays into `PageResponse`.
+- Trace Evidence, Human Review, Prompt Studio, Resource Library, and Audit Log pages use compact pagination controls.
+- Audit Log is a real lightweight page with local filters for action, actor, target, and keyword.
+- P5C does not add production search, full-text indexing, complete MCP protocol support, real external execution, or production RBAC.

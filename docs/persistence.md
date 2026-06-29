@@ -4,6 +4,8 @@ P5A adds H2 + JdbcTemplate persistence for the MCP Tool Gateway demo.
 
 P5B uses the same repository boundary for Prompt / Resource create, update, publish, and archive workflows.
 
+P5C adds service-layer filtering and pagination for local demo governance lists.
+
 ## Storage
 
 The backend uses Spring JDBC repositories under `backend/src/main/java/com/mcp/gateway/persistence`.
@@ -60,6 +62,8 @@ Local file-backed H2 can be configured for manual development, but generated dat
 This is a local demo persistence layer, not a production database architecture.
 
 Prompt / Resource write operations persist to the local H2 demo store and write `AuditLogEntry` rows. They do not make the project a real enterprise configuration center.
+
+P5C pagination and filtering are designed for the seeded/local H2 demo data set. They are not full-text search, not Elasticsearch, and not production-grade search infrastructure.
 
 It does not add production-grade permissions, complete official MCP protocol compatibility, real provider execution, real enterprise data, unattended high-risk execution, or an enterprise knowledge graph.
 

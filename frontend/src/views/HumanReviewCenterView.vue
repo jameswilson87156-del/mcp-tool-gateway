@@ -1,14 +1,18 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import AuditTrailList from '../components/AuditTrailList.vue'
+import PaginationControls from '../components/PaginationControls.vue'
 import ReviewDecisionPanel from '../components/ReviewDecisionPanel.vue'
 import ReviewDetailPanel from '../components/ReviewDetailPanel.vue'
 import ReviewQueue from '../components/ReviewQueue.vue'
 import SectionCard from '../components/SectionCard.vue'
-import { decideReview, getAuditLogs, getReviews, getToolCalls, getTools, getTrace } from '../services/api'
-import type { AuditLogEntry, ToolCallRecord, ToolCallReview, ToolDefinition, TraceEvent } from '../types'
+import { decideReview, getAuditLogsPage, getReviewsPage, getToolCalls, getTools, getTrace } from '../services/api'
+import type { AuditLogEntry, CallStatus, PageResponse, ToolCallRecord, ToolCallReview, ToolDefinition, TraceEvent } from '../types'
 
 const reviews = ref<ToolCallReview[]>([])
+const reviewPage = ref<PageResponse<ToolCallReview>>({ items: [], page: 0, size: 6, total: 0, totalPages: 0 })
+const reviewStatus = ref<'ALL' | CallStatus>('ALL')
+const reviewKeyword = ref('')
 const calls = ref<ToolCallRecord[]>([])
 const tools = ref<ToolDefinition[]>([])
 const auditLogs = ref<AuditLogEntry[]>([])
@@ -16,6 +20,7 @@ const trace = ref<TraceEvent[]>([])
 const selectedReview = ref<ToolCallReview | null>(null)
 const source = ref<'api' | 'demo-fallback'>('demo-fallback')
 const busy = ref(false)
+const pageSize = 6
 
 const selectedCall = computed(() => calls.value.find((call) => call.id === selectedReview.value?.callId) ?? null)
 const selectedTool = computed(() => tools.value.find((tool) => tool.id === selectedReview.value?.toolId) ?? null)
@@ -24,14 +29,30 @@ const pendingCount = computed(() => reviews.value.filter((review) => review.stat
 onMounted(loadReviewData)
 
 async function loadReviewData() {
-  const [reviewState, callState, toolState, auditState] = await Promise.all([getReviews(), getToolCalls(), getTools(), getAuditLogs()])
-  reviews.value = reviewState.data
+  const [reviewState, callState, toolState, auditState] = await Promise.all([
+    getReviewsPage({ page: reviewPage.value.page, size: pageSize, status: reviewStatus.value, keyword: reviewKeyword.value }),
+    getToolCalls(),
+    getTools(),
+    getAuditLogsPage({ page: 0, size: 8 })
+  ])
+  reviewPage.value = reviewState.data
+  reviews.value = reviewState.data.items
   calls.value = callState.data
   tools.value = toolState.data
-  auditLogs.value = auditState.data
+  auditLogs.value = auditState.data.items
   source.value = [reviewState.source, callState.source, toolState.source, auditState.source].every((item) => item === 'api') ? 'api' : 'demo-fallback'
   selectedReview.value = reviews.value.find((review) => review.status === 'PENDING_REVIEW') ?? reviews.value[0] ?? null
   await loadTrace()
+}
+
+async function changeReviewPage(page: number) {
+  reviewPage.value = { ...reviewPage.value, page }
+  await loadReviewData()
+}
+
+async function applyReviewFilters() {
+  reviewPage.value = { ...reviewPage.value, page: 0 }
+  await loadReviewData()
 }
 
 async function selectReview(review: ToolCallReview) {
@@ -70,12 +91,22 @@ async function handleDecision(action: 'approve' | 'reject' | 'request-changes', 
       </div>
       <div class="boundary-panel">
         <span>{{ source === 'api' ? '后端 API 已连接' : 'demo fallback 已启用' }}</span>
-        <strong>{{ pendingCount }} 待审核 · {{ reviews.length }} Review</strong>
+        <strong>{{ pendingCount }} 待审核 · {{ reviewPage.total }} Review</strong>
       </div>
     </header>
 
     <div class="review-layout">
       <SectionCard title="待审核队列" eyebrow="Human Review">
+        <div class="compact-filter-row">
+          <select v-model="reviewStatus" @change="applyReviewFilters">
+            <option value="ALL">Status: 全部</option>
+            <option value="PENDING_REVIEW">PENDING_REVIEW</option>
+            <option value="APPROVED">APPROVED</option>
+            <option value="REJECTED">REJECTED</option>
+            <option value="CHANGES_REQUESTED">CHANGES_REQUESTED</option>
+          </select>
+          <input v-model="reviewKeyword" placeholder="搜索 Review / Tool / Call" @input="applyReviewFilters" />
+        </div>
         <ReviewQueue
           :reviews="reviews"
           :calls="calls"
@@ -83,6 +114,7 @@ async function handleDecision(action: 'approve' | 'reject' | 'request-changes', 
           :selected-id="selectedReview?.id ?? ''"
           @select="selectReview"
         />
+        <PaginationControls :page="reviewPage" @change="changeReviewPage" />
       </SectionCard>
       <ReviewDetailPanel :review="selectedReview" :call="selectedCall" :tool="selectedTool" :trace="trace" />
       <ReviewDecisionPanel :review="selectedReview" :busy="busy" @decide="handleDecision" />

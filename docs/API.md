@@ -2,7 +2,21 @@
 
 Base URL: `http://localhost:8080/api`
 
-P5B keeps the existing read response shapes compatible and adds Prompt / Resource write operations on top of the H2 + JdbcTemplate repository layer. List endpoints still return arrays in this phase; pagination is intentionally deferred.
+P5C adds paginated filtering on top of the H2 + JdbcTemplate repository layer. Frontend adapters still tolerate legacy array responses, but the paginated list endpoints now return `PageResponse`.
+
+`PageResponse<T>` shape:
+
+```json
+{
+  "items": [],
+  "page": 0,
+  "size": 10,
+  "total": 100,
+  "totalPages": 10
+}
+```
+
+`page` starts at `0`, default `size` is `10`, and maximum `size` is `50`.
 
 ## Auth
 
@@ -57,7 +71,7 @@ Invoke request:
 - `GET /traces`
 - `GET /traces/{traceId}`
 
-`GET /traces` supports in-memory filtering:
+`GET /traces?page=&size=&status=&riskLevel=&toolName=&reviewRequired=&keyword=` supports local demo filtering:
 
 - `status`
 - `riskLevel`
@@ -109,6 +123,8 @@ Review state flow:
 
 `PENDING_REVIEW -> APPROVED / REJECTED / CHANGES_REQUESTED`
 
+`GET /reviews?page=&size=&status=&riskLevel=&toolName=&keyword=` returns `PageResponse<ToolCallReview>`.
+
 ## Prompts
 
 - `GET /prompts`
@@ -118,6 +134,8 @@ Review state flow:
 - `POST /prompts/{id}/publish`
 - `POST /prompts/{id}/archive`
 - `POST /prompts/{id}/render`
+
+`GET /prompts?page=&size=&keyword=&status=&category=` returns `PageResponse<PromptTemplate>`.
 
 Prompt fields include:
 
@@ -191,6 +209,8 @@ Render response returns `valid`, `validationErrors`, `renderedPrompt`, and `rend
 - `POST /resources/{id}/publish`
 - `POST /resources/{id}/archive`
 
+`GET /resources?page=&size=&keyword=&status=&type=` returns `PageResponse<ResourceDocument>`.
+
 Resource fields include:
 
 - `id`
@@ -263,6 +283,10 @@ Validation failures return:
 
 - `GET /dashboard/stats`
 - `GET /audit-logs`
+
+`GET /audit-logs?page=&size=&action=&actor=&target=&keyword=` returns `PageResponse<AuditLogEntry>`.
+
+P5C filtering is intended for the local demo H2 data set. It is not full-text search, not Elasticsearch, and not production-grade search infrastructure.
 
 ## Demo Tools
 

@@ -1,10 +1,11 @@
 package com.mcp.gateway.api;
 
+import com.mcp.gateway.model.CallStatus;
+import com.mcp.gateway.model.PageResponse;
+import com.mcp.gateway.model.RiskLevel;
 import com.mcp.gateway.model.ToolCallReview;
 import com.mcp.gateway.service.GatewayService;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @CrossOrigin(origins = "*")
@@ -17,8 +18,15 @@ public class ReviewController {
     }
 
     @GetMapping
-    public List<ToolCallReview> reviews() {
-        return gateway.listReviews();
+    public PageResponse<ToolCallReview> reviews(
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size,
+            @RequestParam(required = false) CallStatus status,
+            @RequestParam(required = false) RiskLevel riskLevel,
+            @RequestParam(required = false) String toolName,
+            @RequestParam(required = false) String keyword
+    ) {
+        return gateway.listReviews(page, size, status, riskLevel, toolName, keyword);
     }
 
     @PostMapping("/{id}/approve")

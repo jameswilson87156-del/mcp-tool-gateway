@@ -10,6 +10,8 @@ MCP Tool Gateway is an MCP-style enterprise Agent tool gateway for Tool / Prompt
 
 ![Trace Evidence](docs/images/trace-evidence.png)
 
+![Audit Log](docs/images/audit-log.png)
+
 ![Prompt Studio / Resource Library](docs/images/prompt-resource.png)
 
 ## Positioning
@@ -43,6 +45,7 @@ Tool selection -> JSON parameters -> sandbox invocation -> response preview -> P
 - P5A H2 + JdbcTemplate persistence for Tools, Prompts, Resources, Tool Calls, Reviews, Trace Events, Audit Logs, demo users, and role policy demo rows.
 - P5B Prompt / Resource editing workflow with create, update, draft, publish, archive, validation feedback, and Audit Log evidence.
 - UI polish: refined admin avatar and demo user menu.
+- P5C paginated filtering for Trace Evidence, Human Review, Audit Log, Prompt, and Resource governance data.
 
 ## Boundaries
 
@@ -57,6 +60,7 @@ Tool selection -> JSON parameters -> sandbox invocation -> response preview -> P
 - H2 persistence is a local demo persistence layer, not a production database architecture.
 - Prompt / Resource editing is a local demo governance workflow, not a real enterprise configuration center.
 - The admin avatar and user menu are demo UI polish, not a real account system.
+- P5C filtering is local demo H2 filtering, not a production search engine or Elasticsearch integration.
 
 ## Design References
 

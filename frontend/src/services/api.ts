@@ -16,15 +16,21 @@ import {
 } from '../data/demo'
 import type {
   AuditLogEntry,
+  AuditLogFilters,
   DashboardStats,
   DemoUserProfile,
+  PageQuery,
+  PageResponse,
   PromptDetail,
+  PromptListFilters,
   PromptRenderResponse,
   PromptTemplate,
   PromptUpsertInput,
   ResourceDetail,
   ResourceDocument,
+  ResourceListFilters,
   ResourceUpsertInput,
+  ReviewFilters,
   ToolCallRecord,
   ToolCallReview,
   ToolDefinition,
@@ -123,7 +129,7 @@ export function getTrace(callId: string) {
 }
 
 export function getReviews() {
-  return request<ToolCallReview[]>('/reviews')
+  return pagedRequest<ToolCallReview>('/reviews')
 }
 
 export function decideReview(reviewId: string, action: 'approve' | 'reject' | 'request-changes', comment: string) {
@@ -137,11 +143,12 @@ export function decideReview(reviewId: string, action: 'approve' | 'reject' | 'r
 }
 
 export function getAuditLogs() {
-  return request<AuditLogEntry[]>('/audit-logs')
+  return pagedRequest<AuditLogEntry>('/audit-logs')
 }
 
-export function getTraces(filters?: Partial<TraceFilters>) {
+export function getTraces(filters?: Partial<TraceFilters> & PageQuery) {
   const params = new URLSearchParams()
+  appendPageParams(params, filters)
   if (filters?.keyword) params.set('keyword', filters.keyword)
   if (filters?.riskLevel && filters.riskLevel !== 'ALL') params.set('riskLevel', filters.riskLevel)
   if (filters?.status && filters.status !== 'ALL') params.set('status', filters.status)
@@ -149,15 +156,43 @@ export function getTraces(filters?: Partial<TraceFilters>) {
   if (filters?.reviewRequired === 'NO') params.set('reviewRequired', 'false')
   if (filters?.toolName) params.set('toolName', filters.toolName)
   const query = params.toString()
-  return request<TraceSummary[]>(`/traces${query ? `?${query}` : ''}`)
+  return pagedRequest<TraceSummary>(`/traces${query ? `?${query}` : ''}`, filters)
 }
 
 export function getTraceDetail(traceId: string) {
   return request<TraceDetail>(`/traces/${traceId}`)
 }
 
-export function getPrompts() {
-  return request<PromptTemplate[]>('/prompts')
+export function getReviewsPage(filters?: ReviewFilters) {
+  const params = new URLSearchParams()
+  appendPageParams(params, filters)
+  if (filters?.status && filters.status !== 'ALL') params.set('status', filters.status)
+  if (filters?.riskLevel && filters.riskLevel !== 'ALL') params.set('riskLevel', filters.riskLevel)
+  if (filters?.toolName) params.set('toolName', filters.toolName)
+  if (filters?.keyword) params.set('keyword', filters.keyword)
+  const query = params.toString()
+  return pagedRequest<ToolCallReview>(`/reviews${query ? `?${query}` : ''}`, filters)
+}
+
+export function getAuditLogsPage(filters?: AuditLogFilters) {
+  const params = new URLSearchParams()
+  appendPageParams(params, filters)
+  if (filters?.action) params.set('action', filters.action)
+  if (filters?.actor) params.set('actor', filters.actor)
+  if (filters?.target) params.set('target', filters.target)
+  if (filters?.keyword) params.set('keyword', filters.keyword)
+  const query = params.toString()
+  return pagedRequest<AuditLogEntry>(`/audit-logs${query ? `?${query}` : ''}`, filters)
+}
+
+export function getPrompts(filters?: PromptListFilters) {
+  const params = new URLSearchParams()
+  appendPageParams(params, filters)
+  if (filters?.keyword) params.set('keyword', filters.keyword)
+  if (filters?.status && filters.status !== 'ALL') params.set('status', filters.status)
+  if (filters?.category) params.set('category', filters.category)
+  const query = params.toString()
+  return pagedRequest<PromptTemplate>(`/prompts${query ? `?${query}` : ''}`, filters)
 }
 
 export function getPromptDetail(promptId: string) {
@@ -196,8 +231,14 @@ export function archivePrompt(promptId: string) {
   return request<PromptDetail>(`/prompts/${promptId}/archive`, { method: 'POST' })
 }
 
-export function getResources() {
-  return request<ResourceDocument[]>('/resources')
+export function getResources(filters?: ResourceListFilters) {
+  const params = new URLSearchParams()
+  appendPageParams(params, filters)
+  if (filters?.keyword) params.set('keyword', filters.keyword)
+  if (filters?.status && filters.status !== 'ALL') params.set('status', filters.status)
+  if (filters?.type && filters.type !== 'ALL') params.set('type', filters.type)
+  const query = params.toString()
+  return pagedRequest<ResourceDocument>(`/resources${query ? `?${query}` : ''}`, filters)
 }
 
 export function getResourceDetail(resourceId: string) {
@@ -226,70 +267,101 @@ export function archiveResource(resourceId: string) {
   return request<ResourceDetail>(`/resources/${resourceId}/archive`, { method: 'POST' })
 }
 
+async function pagedRequest<T>(path: string, query?: PageQuery) {
+  const result = await request<PageResponse<T> | T[]>(path)
+  return {
+    source: result.source,
+    data: toPageResponse(result.data, query)
+  } satisfies ApiState<PageResponse<T>>
+}
+
+function appendPageParams(params: URLSearchParams, query?: PageQuery) {
+  if (query?.page !== undefined) params.set('page', String(query.page))
+  if (query?.size !== undefined) params.set('size', String(query.size))
+}
+
+function toPageResponse<T>(value: PageResponse<T> | T[], query?: PageQuery): PageResponse<T> {
+  const page = query?.page ?? 0
+  const size = query?.size ?? 10
+  if (!Array.isArray(value)) {
+    return value
+  }
+  const start = page * size
+  const items = value.slice(start, start + size)
+  return {
+    items,
+    page,
+    size,
+    total: value.length,
+    totalPages: value.length === 0 ? 0 : Math.ceil(value.length / size)
+  }
+}
+
 function fallback<T>(path: string, init?: RequestInit): T {
-  if (path === '/tools') {
+  const cleanPath = path.split('?')[0]
+  if (cleanPath === '/tools') {
     return demoTools as T
   }
-  if (path === '/dashboard/stats') {
+  if (cleanPath === '/dashboard/stats') {
     return demoStats as T
   }
-  if (path === '/auth/me') {
+  if (cleanPath === '/auth/me') {
     return demoCurrentUser as T
   }
-  if (path.startsWith('/traces/')) {
-    const segments = path.split('/')
+  if (cleanPath.startsWith('/traces/')) {
+    const segments = cleanPath.split('/')
     const traceId = segments[segments.length - 1] ?? demoTraceDetail.traceId
     return { ...demoTraceDetail, traceId } as T
   }
-  if (path.startsWith('/traces')) {
+  if (cleanPath.startsWith('/traces')) {
     return demoTraceSummaries as T
   }
-  if (path.includes('/trace')) {
+  if (cleanPath.includes('/trace')) {
     return demoTrace as T
   }
-  if (path === '/tool-calls') {
+  if (cleanPath === '/tool-calls') {
     return [demoCall] as T
   }
-  if (path === '/reviews') {
+  if (cleanPath === '/reviews') {
     return demoReviews as T
   }
-  if (path.includes('/reviews/')) {
-    return { ...demoReviews[0], status: path.includes('approve') ? 'APPROVED' : path.includes('reject') ? 'REJECTED' : 'CHANGES_REQUESTED' } as T
+  if (cleanPath.includes('/reviews/')) {
+    return { ...demoReviews[0], status: cleanPath.includes('approve') ? 'APPROVED' : cleanPath.includes('reject') ? 'REJECTED' : 'CHANGES_REQUESTED' } as T
   }
-  if (path === '/audit-logs') {
+  if (cleanPath === '/audit-logs') {
     return demoAuditLogs as T
   }
-  if (path === '/prompts' && init?.method === 'POST') {
+  if (cleanPath === '/prompts' && init?.method === 'POST') {
     return demoPromptDetail as T
   }
-  if (path === '/prompts') {
+  if (cleanPath === '/prompts') {
     return demoPrompts as T
   }
-  if (path.includes('/prompts/') && path.includes('/render')) {
+  if (cleanPath.includes('/prompts/') && cleanPath.includes('/render')) {
     const body = init?.body ? JSON.parse(String(init.body)) : { variables: {} }
-    return demoPromptRender(path.split('/')[2] ?? demoPromptDetail.prompt.id, body.variables ?? {}) as T
+    return demoPromptRender(cleanPath.split('/')[2] ?? demoPromptDetail.prompt.id, body.variables ?? {}) as T
   }
-  if (path.includes('/prompts/') && (path.includes('/publish') || path.includes('/archive') || init?.method === 'PUT')) {
-    const promptId = path.split('/')[2] ?? demoPromptDetail.prompt.id
+  if (cleanPath.includes('/prompts/') && (cleanPath.includes('/publish') || cleanPath.includes('/archive') || init?.method === 'PUT')) {
+    const promptId = cleanPath.split('/')[2] ?? demoPromptDetail.prompt.id
     const prompt = demoPrompts.find((item) => item.id === promptId) ?? demoPromptDetail.prompt
     return { ...demoPromptDetail, prompt } as T
   }
-  if (path.startsWith('/prompts/')) {
-    const promptId = path.split('/')[2] ?? demoPromptDetail.prompt.id
+  if (cleanPath.startsWith('/prompts/')) {
+    const promptId = cleanPath.split('/')[2] ?? demoPromptDetail.prompt.id
     const prompt = demoPrompts.find((item) => item.id === promptId) ?? demoPromptDetail.prompt
     return { ...demoPromptDetail, prompt, templateContent: prompt.templateContent, variables: prompt.variables } as T
   }
-  if (path === '/resources' && init?.method === 'POST') {
+  if (cleanPath === '/resources' && init?.method === 'POST') {
     return demoResourceDetail as T
   }
-  if (path === '/resources') {
+  if (cleanPath === '/resources') {
     return demoResources as T
   }
-  if (path.includes('/resources/') && (path.includes('/publish') || path.includes('/archive') || init?.method === 'PUT')) {
+  if (cleanPath.includes('/resources/') && (cleanPath.includes('/publish') || cleanPath.includes('/archive') || init?.method === 'PUT')) {
     return demoResourceDetail as T
   }
-  if (path.startsWith('/resources/')) {
-    const resourceId = path.split('/')[2] ?? demoResourceDetail.resource.id
+  if (cleanPath.startsWith('/resources/')) {
+    const resourceId = cleanPath.split('/')[2] ?? demoResourceDetail.resource.id
     const resource = demoResources.find((item) => item.id === resourceId) ?? demoResourceDetail.resource
     return {
       ...demoResourceDetail,
@@ -301,7 +373,7 @@ function fallback<T>(path: string, init?: RequestInit): T {
       relatedPrompts: resource.relatedPrompts
     } as T
   }
-  if (path.includes('/invoke')) {
+  if (cleanPath.includes('/invoke')) {
     const body = init?.body ? JSON.parse(String(init.body)) : { parameters: {} }
     return {
       ...demoCall,

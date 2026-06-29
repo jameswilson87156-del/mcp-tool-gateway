@@ -1,11 +1,10 @@
 package com.mcp.gateway.api;
 
+import com.mcp.gateway.model.PageResponse;
 import com.mcp.gateway.model.PromptTemplate;
 import com.mcp.gateway.model.ResourceDocument;
 import com.mcp.gateway.service.GatewayService;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @CrossOrigin(origins = "*")
@@ -17,8 +16,14 @@ public class ContentController {
     }
 
     @GetMapping("/api/prompts")
-    public List<PromptTemplate> prompts() {
-        return gateway.listPrompts();
+    public PageResponse<PromptTemplate> prompts(
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String category
+    ) {
+        return gateway.listPrompts(page, size, keyword, status, category);
     }
 
     @GetMapping("/api/prompts/{id}")
@@ -52,8 +57,14 @@ public class ContentController {
     }
 
     @GetMapping("/api/resources")
-    public List<ResourceDocument> resources() {
-        return gateway.listResources();
+    public PageResponse<ResourceDocument> resources(
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String type
+    ) {
+        return gateway.listResources(page, size, keyword, status, type);
     }
 
     @GetMapping("/api/resources/{id}")

@@ -66,6 +66,10 @@ async function capturePages(page, outputDir) {
   await page.waitForTimeout(500)
   await page.screenshot({ path: resolve(outputDir, 'trace-evidence.png'), fullPage: true })
 
+  await page.getByRole('button', { name: /审计日志/ }).click()
+  await page.waitForTimeout(500)
+  await page.screenshot({ path: resolve(outputDir, 'audit-log.png'), fullPage: true })
+
   await page.getByRole('button', { name: /提示词工作室/ }).click()
   await page.waitForTimeout(500)
   await page.getByRole('button', { name: /Render Prompt/ }).click()

@@ -160,10 +160,10 @@ public class GatewayService {
         return traceRepository.findByCallId(callId);
     }
 
-    public List<TraceSummary> listTraceSummaries(CallStatus status, RiskLevel riskLevel, String toolName, Boolean reviewRequired, String keyword) {
+    public PageResponse<TraceSummary> listTraceSummaries(Integer page, Integer size, CallStatus status, RiskLevel riskLevel, String toolName, Boolean reviewRequired, String keyword) {
         var normalizedKeyword = keyword == null ? "" : keyword.trim().toLowerCase(Locale.ROOT);
         var normalizedTool = toolName == null ? "" : toolName.trim().toLowerCase(Locale.ROOT);
-        return toolCallRepository.findAll().stream()
+        var items = toolCallRepository.findAll().stream()
                 .filter(call -> status == null || call.status() == status)
                 .filter(call -> riskLevel == null || call.riskLevel() == riskLevel)
                 .filter(call -> normalizedTool.isBlank() || call.toolName().toLowerCase(Locale.ROOT).contains(normalizedTool))
@@ -172,6 +172,7 @@ public class GatewayService {
                 .sorted(Comparator.comparing(ToolCallRecord::createdAt).reversed())
                 .map(this::toTraceSummary)
                 .toList();
+        return PageResponse.of(items, page, size);
     }
 
     public TraceDetail getTraceDetail(String traceId) {
@@ -211,10 +212,17 @@ public class GatewayService {
         );
     }
 
-    public List<ToolCallReview> listReviews() {
-        return reviewRepository.findAll().stream()
+    public PageResponse<ToolCallReview> listReviews(Integer page, Integer size, CallStatus status, RiskLevel riskLevel, String toolName, String keyword) {
+        var normalizedKeyword = normalize(keyword);
+        var normalizedTool = normalize(toolName);
+        var items = reviewRepository.findAll().stream()
+                .filter(review -> status == null || review.status() == status)
+                .filter(review -> riskLevel == null || review.riskLevel() == riskLevel)
+                .filter(review -> normalizedTool.isBlank() || normalize(review.toolId()).contains(normalizedTool))
+                .filter(review -> normalizedKeyword.isBlank() || reviewKeyword(review).contains(normalizedKeyword))
                 .sorted(Comparator.comparing(ToolCallReview::createdAt).reversed())
                 .toList();
+        return PageResponse.of(items, page, size);
     }
 
     public ToolCallReview approveReview(String id, ReviewRequest request) {
@@ -262,8 +270,16 @@ public class GatewayService {
         return updated;
     }
 
-    public List<PromptTemplate> listPrompts() {
-        return promptRepository.findAll();
+    public PageResponse<PromptTemplate> listPrompts(Integer page, Integer size, String keyword, String status, String category) {
+        var normalizedKeyword = normalize(keyword);
+        var normalizedStatus = normalize(status);
+        var normalizedCategory = normalize(category);
+        var items = promptRepository.findAll().stream()
+                .filter(prompt -> normalizedStatus.isBlank() || normalize(prompt.status()).equals(normalizedStatus))
+                .filter(prompt -> normalizedCategory.isBlank() || normalize(prompt.category()).contains(normalizedCategory))
+                .filter(prompt -> normalizedKeyword.isBlank() || promptKeyword(prompt).contains(normalizedKeyword))
+                .toList();
+        return PageResponse.of(items, page, size);
     }
 
     public PromptDetail getPromptDetail(String id) {
@@ -421,8 +437,16 @@ public class GatewayService {
         return new PromptRenderResponse(prompt.id(), rendered, true, List.of(), variables, now.toString());
     }
 
-    public List<ResourceDocument> listResources() {
-        return resourceRepository.findAll();
+    public PageResponse<ResourceDocument> listResources(Integer page, Integer size, String keyword, String status, String type) {
+        var normalizedKeyword = normalize(keyword);
+        var normalizedStatus = normalize(status);
+        var normalizedType = normalize(type);
+        var items = resourceRepository.findAll().stream()
+                .filter(resource -> normalizedStatus.isBlank() || normalize(resource.status()).equals(normalizedStatus))
+                .filter(resource -> normalizedType.isBlank() || normalize(resource.type()).equals(normalizedType))
+                .filter(resource -> normalizedKeyword.isBlank() || resourceKeyword(resource).contains(normalizedKeyword))
+                .toList();
+        return PageResponse.of(items, page, size);
     }
 
     public ResourceDetail getResourceDetail(String id) {
@@ -534,10 +558,19 @@ public class GatewayService {
         );
     }
 
-    public List<AuditLogEntry> listAuditLogs() {
-        return auditLogRepository.findAll().stream()
+    public PageResponse<AuditLogEntry> listAuditLogs(Integer page, Integer size, String action, String actor, String target, String keyword) {
+        var normalizedAction = normalize(action);
+        var normalizedActor = normalize(actor);
+        var normalizedTarget = normalize(target);
+        var normalizedKeyword = normalize(keyword);
+        var items = auditLogRepository.findAll().stream()
+                .filter(entry -> normalizedAction.isBlank() || normalize(entry.action()).contains(normalizedAction))
+                .filter(entry -> normalizedActor.isBlank() || normalize(entry.actor()).contains(normalizedActor))
+                .filter(entry -> normalizedTarget.isBlank() || normalize(entry.targetType()).contains(normalizedTarget) || normalize(entry.targetId()).contains(normalizedTarget))
+                .filter(entry -> normalizedKeyword.isBlank() || auditKeyword(entry).contains(normalizedKeyword))
                 .sorted(Comparator.comparing(AuditLogEntry::timestamp).reversed())
                 .toList();
+        return PageResponse.of(items, page, size);
     }
 
     public Map<String, Object> dashboardStats() {
@@ -709,6 +742,61 @@ public class GatewayService {
                 call.status().name(),
                 call.riskLevel().name()
         ).toLowerCase(Locale.ROOT);
+    }
+
+    private String reviewKeyword(ToolCallReview review) {
+        return normalize(String.join(" ",
+                review.id(),
+                review.callId(),
+                review.toolId(),
+                review.riskLevel().name(),
+                review.status().name(),
+                review.decision(),
+                review.comment() == null ? "" : review.comment(),
+                review.reviewer() == null ? "" : review.reviewer()
+        ));
+    }
+
+    private String promptKeyword(PromptTemplate prompt) {
+        return normalize(String.join(" ",
+                prompt.id(),
+                prompt.name(),
+                prompt.description(),
+                prompt.category(),
+                prompt.status(),
+                prompt.usageScope(),
+                String.join(" ", prompt.variables()),
+                String.join(" ", prompt.relatedTools())
+        ));
+    }
+
+    private String resourceKeyword(ResourceDocument resource) {
+        return normalize(String.join(" ",
+                resource.id(),
+                resource.name(),
+                resource.type(),
+                resource.description(),
+                resource.status(),
+                resource.contentSummary(),
+                String.join(" ", resource.tags()),
+                String.join(" ", resource.linkedTools()),
+                String.join(" ", resource.relatedPrompts())
+        ));
+    }
+
+    private String auditKeyword(AuditLogEntry entry) {
+        return normalize(String.join(" ",
+                entry.id(),
+                entry.actor(),
+                entry.action(),
+                entry.targetType(),
+                entry.targetId(),
+                String.valueOf(entry.metadata())
+        ));
+    }
+
+    private String normalize(String value) {
+        return value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
     }
 
     private List<AuditLogEntry> relatedAuditLogs(ToolCallRecord call) {

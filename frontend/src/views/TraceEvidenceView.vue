@@ -2,12 +2,13 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import AuditEvidencePanel from '../components/AuditEvidencePanel.vue'
 import GovernanceSummaryStrip from '../components/GovernanceSummaryStrip.vue'
+import PaginationControls from '../components/PaginationControls.vue'
 import TraceFilterBar from '../components/TraceFilterBar.vue'
 import TraceListPanel from '../components/TraceListPanel.vue'
 import TraceStepDetailPanel from '../components/TraceStepDetailPanel.vue'
 import TraceTimelineDetail from '../components/TraceTimelineDetail.vue'
 import { getTraceDetail, getTraces } from '../services/api'
-import type { TraceDetail, TraceEvent, TraceFilters, TraceSummary } from '../types'
+import type { PageResponse, TraceDetail, TraceEvent, TraceFilters, TraceSummary } from '../types'
 
 const filters = ref<TraceFilters>({
   keyword: '',
@@ -17,6 +18,8 @@ const filters = ref<TraceFilters>({
   toolName: ''
 })
 const traces = ref<TraceSummary[]>([])
+const tracePage = ref<PageResponse<TraceSummary>>({ items: [], page: 0, size: 10, total: 0, totalPages: 0 })
+const pageSize = 10
 const toolOptions = ref<string[]>([])
 const selectedTrace = ref<TraceSummary | null>(null)
 const detail = ref<TraceDetail | null>(null)
@@ -28,13 +31,17 @@ const selectedTraceId = computed(() => selectedTrace.value?.traceId ?? '')
 
 onMounted(loadTraces)
 
-watch(filters, loadTraces, { deep: true })
+watch(filters, () => {
+  tracePage.value = { ...tracePage.value, page: 0 }
+  loadTraces(0)
+}, { deep: true })
 
-async function loadTraces() {
+async function loadTraces(page = tracePage.value.page) {
   loading.value = true
   try {
-    const result = await getTraces(filters.value)
-    traces.value = result.data
+    const result = await getTraces({ ...filters.value, page, size: pageSize })
+    tracePage.value = result.data
+    traces.value = result.data.items
     const nextTools = new Set(toolOptions.value)
     traces.value.forEach((trace) => nextTools.add(trace.toolName))
     toolOptions.value = [...nextTools].sort()
@@ -46,6 +53,11 @@ async function loadTraces() {
   } finally {
     loading.value = false
   }
+}
+
+async function changePage(page: number) {
+  tracePage.value = { ...tracePage.value, page }
+  await loadTraces(page)
 }
 
 async function selectTrace(trace: TraceSummary) {
@@ -76,7 +88,7 @@ async function loadDetail() {
       </div>
       <div class="boundary-panel">
         <span>{{ source === 'api' ? '后端 API 已连接' : 'demo fallback 已启用' }}</span>
-        <strong>{{ traces.length }} Traces · {{ loading ? '加载中' : '已同步' }}</strong>
+        <strong>{{ tracePage.total }} Traces · {{ loading ? '加载中' : '已同步' }}</strong>
       </div>
     </header>
 
@@ -84,7 +96,10 @@ async function loadDetail() {
     <TraceFilterBar v-model:filters="filters" :tool-options="toolOptions" />
 
     <div class="trace-governance-layout">
-      <TraceListPanel :traces="traces" :selected-trace-id="selectedTraceId" @select="selectTrace" />
+      <aside class="paginated-list-stack">
+        <TraceListPanel :traces="traces" :selected-trace-id="selectedTraceId" @select="selectTrace" />
+        <PaginationControls :page="tracePage" @change="changePage" />
+      </aside>
       <main class="trace-center-column">
         <TraceTimelineDetail :events="detail?.traceEvents ?? []" :selected-step-id="selectedStep?.id ?? ''" @select="selectedStep = $event" />
         <AuditEvidencePanel :logs="detail?.auditLogs ?? []" />

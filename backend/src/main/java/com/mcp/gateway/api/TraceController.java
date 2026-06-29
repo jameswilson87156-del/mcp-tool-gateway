@@ -1,6 +1,7 @@
 package com.mcp.gateway.api;
 
 import com.mcp.gateway.model.CallStatus;
+import com.mcp.gateway.model.PageResponse;
 import com.mcp.gateway.model.RiskLevel;
 import com.mcp.gateway.model.TraceDetail;
 import com.mcp.gateway.model.TraceSummary;
@@ -11,8 +12,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.util.List;
 
 @RestController
 @CrossOrigin(origins = "*")
@@ -25,14 +24,16 @@ public class TraceController {
     }
 
     @GetMapping
-    public List<TraceSummary> traces(
+    public PageResponse<TraceSummary> traces(
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size,
             @RequestParam(required = false) CallStatus status,
             @RequestParam(required = false) RiskLevel riskLevel,
             @RequestParam(required = false) String toolName,
             @RequestParam(required = false) Boolean reviewRequired,
             @RequestParam(required = false) String keyword
     ) {
-        return gateway.listTraceSummaries(status, riskLevel, toolName, reviewRequired, keyword);
+        return gateway.listTraceSummaries(page, size, status, riskLevel, toolName, reviewRequired, keyword);
     }
 
     @GetMapping("/{traceId}")

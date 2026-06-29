@@ -125,8 +125,8 @@ class ApiControllerTests {
     void listsSeededHumanReviews() throws Exception {
         mockMvc.perform(get("/api/reviews"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[?(@.status == 'PENDING_REVIEW')]").exists())
-                .andExpect(jsonPath("$[?(@.toolId == 'db.query.readonly')]").exists());
+                .andExpect(jsonPath("$.items[?(@.status == 'PENDING_REVIEW')]").exists())
+                .andExpect(jsonPath("$.items[?(@.toolId == 'db.query.readonly')]").exists());
     }
 
     @Test
@@ -166,18 +166,18 @@ class ApiControllerTests {
     void listsAuditLogs() throws Exception {
         mockMvc.perform(get("/api/audit-logs"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].action").exists());
+                .andExpect(jsonPath("$.items[0].action").exists());
     }
 
     @Test
     void returnsPromptListDetailAndRenderResult() throws Exception {
         mockMvc.perform(get("/api/prompts"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[?(@.id == 'prompt_customer_summary')]").exists())
-                .andExpect(jsonPath("$[0].description").exists())
-                .andExpect(jsonPath("$[0].usageScope").exists())
-                .andExpect(jsonPath("$[0].relatedTools").exists())
-                .andExpect(jsonPath("$[0].usageCount").exists());
+                .andExpect(jsonPath("$.items[?(@.id == 'prompt_customer_summary')]").exists())
+                .andExpect(jsonPath("$.items[0].description").exists())
+                .andExpect(jsonPath("$.items[0].usageScope").exists())
+                .andExpect(jsonPath("$.items[0].relatedTools").exists())
+                .andExpect(jsonPath("$.items[0].usageCount").exists());
 
         mockMvc.perform(get("/api/prompts/prompt_customer_summary"))
                 .andExpect(status().isOk())
@@ -302,10 +302,10 @@ class ApiControllerTests {
     void returnsResourceListAndDetail() throws Exception {
         mockMvc.perform(get("/api/resources"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[?(@.id == 'res_policy_docs')]").exists())
-                .andExpect(jsonPath("$[0].type").exists())
-                .andExpect(jsonPath("$[0].linkedTools").exists())
-                .andExpect(jsonPath("$[0].referenceCount").exists());
+                .andExpect(jsonPath("$.items[?(@.id == 'res_policy_docs')]").exists())
+                .andExpect(jsonPath("$.items[0].type").exists())
+                .andExpect(jsonPath("$.items[0].linkedTools").exists())
+                .andExpect(jsonPath("$.items[0].referenceCount").exists());
 
         mockMvc.perform(get("/api/resources/res_customer_schema"))
                 .andExpect(status().isOk())
@@ -394,18 +394,18 @@ class ApiControllerTests {
                         .param("reviewRequired", "true")
                         .param("keyword", "db.query"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].traceId").exists())
-                .andExpect(jsonPath("$[0].callId").exists())
-                .andExpect(jsonPath("$[0].toolName").value("db.query.readonly"))
-                .andExpect(jsonPath("$[0].reviewRequired").value(true))
-                .andExpect(jsonPath("$[0].totalLatencyMs").exists());
+                .andExpect(jsonPath("$.items[0].traceId").exists())
+                .andExpect(jsonPath("$.items[0].callId").exists())
+                .andExpect(jsonPath("$.items[0].toolName").value("db.query.readonly"))
+                .andExpect(jsonPath("$.items[0].reviewRequired").value(true))
+                .andExpect(jsonPath("$.items[0].totalLatencyMs").exists());
     }
 
     @Test
     void returnsTraceDetailByTraceId() throws Exception {
         var response = mockMvc.perform(get("/api/traces"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].traceId").exists())
+                .andExpect(jsonPath("$.items[0].traceId").exists())
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
@@ -419,6 +419,95 @@ class ApiControllerTests {
                 .andExpect(jsonPath("$.toolSchemaSummary.type").value("object"))
                 .andExpect(jsonPath("$.traceEvents[?(@.step == 'Schema Check')]").exists())
                 .andExpect(jsonPath("$.auditLogs").exists());
+    }
+
+    @Test
+    void tracesReturnPaginatedPageResponse() throws Exception {
+        mockMvc.perform(get("/api/traces")
+                        .param("page", "0")
+                        .param("size", "2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items").isArray())
+                .andExpect(jsonPath("$.page").value(0))
+                .andExpect(jsonPath("$.size").value(2))
+                .andExpect(jsonPath("$.total").exists())
+                .andExpect(jsonPath("$.totalPages").exists());
+    }
+
+    @Test
+    void traceKeywordFilterIsCaseInsensitive() throws Exception {
+        mockMvc.perform(get("/api/traces")
+                        .param("keyword", "DB.QUERY"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].toolName").value("db.query.readonly"));
+    }
+
+    @Test
+    void reviewStatusFilterReturnsMatchingPage() throws Exception {
+        mockMvc.perform(get("/api/reviews")
+                        .param("status", "PENDING_REVIEW"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].status").value("PENDING_REVIEW"))
+                .andExpect(jsonPath("$.total").value(org.hamcrest.Matchers.greaterThanOrEqualTo(1)));
+    }
+
+    @Test
+    void auditActionAndKeywordFiltersReturnMatchingPage() throws Exception {
+        mockMvc.perform(post("/api/tools/db.query.readonly/invoke")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "environment": "production",
+                                  "requester": "admin",
+                                  "parameters": {
+                                    "sql": "select * from demo_customers limit 20"
+                                  }
+                                }
+                                """))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/audit-logs")
+                        .param("action", "tool.invoke")
+                        .param("keyword", "pending"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].action").value("tool.invoke.pending_review"));
+    }
+
+    @Test
+    void promptStatusAndCategoryFiltersReturnMatchingPage() throws Exception {
+        mockMvc.perform(get("/api/prompts")
+                        .param("status", "ACTIVE")
+                        .param("category", "Customer")
+                        .param("keyword", "support"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].status").value("ACTIVE"))
+                .andExpect(jsonPath("$.items[0].category").value("Customer Support"));
+    }
+
+    @Test
+    void resourceStatusAndTypeFiltersReturnMatchingPage() throws Exception {
+        mockMvc.perform(get("/api/resources")
+                        .param("status", "PUBLISHED")
+                        .param("type", "DOCUMENT")
+                        .param("keyword", "policy"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].status").value("PUBLISHED"))
+                .andExpect(jsonPath("$.items[0].type").value("DOCUMENT"));
+    }
+
+    @Test
+    void pageSizeIsLimitedAndEmptyResultsReturnEmptyPage() throws Exception {
+        mockMvc.perform(get("/api/prompts")
+                        .param("size", "200"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.size").value(50));
+
+        mockMvc.perform(get("/api/resources")
+                        .param("keyword", "no-match-p5c"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items", hasSize(0)))
+                .andExpect(jsonPath("$.total").value(0))
+                .andExpect(jsonPath("$.totalPages").value(0));
     }
 
     @Test

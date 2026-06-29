@@ -38,5 +38,9 @@ function toolName(review: ToolCallReview, tools: ToolDefinition[]) {
       <StatusBadge :status="review.status" />
       <small>{{ new Date(review.createdAt).toLocaleTimeString('zh-CN') }}</small>
     </button>
+    <div v-if="!reviews.length" class="empty-state">
+      <strong>没有匹配的 Human Review</strong>
+      <p>调整 Status 或 keyword，或先触发高风险 Tool Call 进入人工审核队列。</p>
+    </div>
   </div>
 </template>

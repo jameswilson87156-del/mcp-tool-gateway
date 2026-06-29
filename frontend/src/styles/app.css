@@ -235,6 +235,68 @@ select {
   background: transparent;
 }
 
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 42px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.pagination-controls button {
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #fbfdff;
+  color: var(--text);
+}
+
+.pagination-controls button:disabled {
+  color: #a7b0bd;
+  cursor: not-allowed;
+}
+
+.pagination-controls strong {
+  color: var(--text);
+}
+
+.paginated-list-stack {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  min-width: 0;
+}
+
+.compact-filter-row,
+.audit-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.compact-filter-row {
+  flex-wrap: wrap;
+}
+
+.compact-filter-row input,
+.compact-filter-row select,
+.audit-filter-bar input {
+  min-width: 0;
+  height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--text);
+  padding: 0 10px;
+}
+
 .user-menu {
   position: relative;
 }
@@ -1163,6 +1225,63 @@ h2 {
 .audit-item span,
 .audit-item small {
   color: var(--muted);
+}
+
+.audit-log-page {
+  display: grid;
+  gap: 18px;
+}
+
+.audit-filter-bar {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.audit-filter-bar .search-box {
+  width: min(460px, 100%);
+}
+
+.audit-filter-bar input {
+  flex: 1;
+}
+
+.audit-evidence-list {
+  display: grid;
+  gap: 12px;
+}
+
+.audit-evidence-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 0.8fr);
+  gap: 16px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.audit-evidence-card h2 {
+  margin-bottom: 6px;
+}
+
+.audit-evidence-card span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.audit-evidence-card pre {
+  max-height: 160px;
+  overflow: auto;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fcfdff;
+  color: #244472;
+  font-family: "JetBrains Mono", Consolas, monospace;
+  line-height: 1.5;
 }
 
 .governance-summary-strip {
