@@ -47,12 +47,20 @@ export interface ApiState<T> {
   source: 'api' | 'demo-fallback'
 }
 
+function apiErrorMessage(status: number, detail: unknown) {
+  if (typeof detail === 'object' && detail) {
+    if ('message' in detail) return String((detail as { message: unknown }).message)
+    if ('error' in detail) return String((detail as { error: unknown }).error)
+  }
+  return `HTTP ${status}`
+}
+
 export class ApiRequestError extends Error {
   status: number
   detail: unknown
 
   constructor(status: number, detail: unknown) {
-    super(typeof detail === 'object' && detail && 'error' in detail ? String((detail as { error: unknown }).error) : `HTTP ${status}`)
+    super(apiErrorMessage(status, detail))
     this.status = status
     this.detail = detail
   }

@@ -46,6 +46,7 @@ Tool selection -> JSON parameters -> sandbox invocation -> response preview -> P
 - P5B Prompt / Resource editing workflow with create, update, draft, publish, archive, validation feedback, and Audit Log evidence.
 - UI polish: refined admin avatar and demo user menu.
 - P5C paginated filtering for Trace Evidence, Human Review, Audit Log, Prompt, and Resource governance data.
+- P5D RBAC PolicyService demo for sensitive API action checks and structured `403` responses.
 
 ## Boundaries
 
@@ -61,6 +62,7 @@ Tool selection -> JSON parameters -> sandbox invocation -> response preview -> P
 - Prompt / Resource editing is a local demo governance workflow, not a real enterprise configuration center.
 - The admin avatar and user menu are demo UI polish, not a real account system.
 - P5C filtering is local demo H2 filtering, not a production search engine or Elasticsearch integration.
+- PolicyService and `X-Demo-Role` are local demo/testing helpers, not OAuth, SSO, JWT, or production authorization.
 
 ## Design References
 
@@ -89,6 +91,11 @@ The frontend calls `http://localhost:8080/api` first. If the backend is unavaila
 
 By default the backend uses H2 in-memory storage and seeds demo data when the tables are empty. Local H2 file storage can be configured for development, but database files under `.data/`, `*.mv.db`, and `*.trace.db` must not be committed.
 
+## RBAC Policy Demo
+
+P5D routes sensitive API actions through a backend `PolicyService`. The policy reads local demo `role_policies` rows and can be exercised in tests with the `X-Demo-Role` header: `ADMIN`, `DEVELOPER`, `REVIEWER`, or `VIEWER`.
+
+Unauthorized actions return structured `403` JSON with `code`, `message`, `action`, `role`, and `requestId`. This is a demo RBAC boundary for local governance workflows, not a production auth system.
 ## Key API
 
 - `POST /api/auth/login`

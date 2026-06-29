@@ -18,6 +18,39 @@ P5C adds paginated filtering on top of the H2 + JdbcTemplate repository layer. F
 
 `page` starts at `0`, default `size` is `10`, and maximum `size` is `50`.
 
+P5D adds a demo `PolicyService` for sensitive API checks. It is local RBAC demo behavior, not production authentication or authorization.
+
+## RBAC Policy Demo
+
+Sensitive endpoints accept an optional `X-Demo-Role` header for local tests and demos only. Missing header resolves to the seeded admin demo user behavior. Valid demo values are:
+
+- `ADMIN`
+- `DEVELOPER`
+- `REVIEWER`
+- `VIEWER`
+
+Current seeded demo matrix:
+
+| Role | Allowed actions |
+| --- | --- |
+| `ADMIN` | all demo actions |
+| `DEVELOPER` | `TOOL_INVOKE`, `TRACE_VIEW` |
+| `REVIEWER` | `REVIEW_DECIDE`, `TRACE_VIEW`, `AUDIT_VIEW` |
+| `VIEWER` | `TRACE_VIEW` |
+
+Protected endpoints:
+
+| Endpoint | Action |
+| --- | --- |
+| `POST /tools/{id}/invoke` | `TOOL_INVOKE` |
+| `POST /prompts`, `PUT /prompts/{id}` | `PROMPT_EDIT` |
+| `POST /prompts/{id}/publish`, `POST /prompts/{id}/archive` | `PROMPT_PUBLISH` |
+| `POST /resources`, `PUT /resources/{id}` | `RESOURCE_EDIT` |
+| `POST /resources/{id}/publish`, `POST /resources/{id}/archive` | `RESOURCE_PUBLISH` |
+| `POST /reviews/{id}/approve`, `POST /reviews/{id}/reject`, `POST /reviews/{id}/request-changes` | `REVIEW_DECIDE` |
+| `GET /traces`, `GET /traces/{traceId}` | `TRACE_VIEW` |
+| `GET /audit-logs` | `AUDIT_VIEW` |
+
 ## Auth
 
 - `POST /auth/login`
@@ -168,85 +201,16 @@ Create/update request:
 
 ```json
 {
-  "name": "高风险工单摘要 Prompt",
-  "description": "用于 Human Review 前整理 Tool Call 证据",
-  "category": "review",
-  "templateContent": "请根据 {{trace_id}} 总结风险原因。",
-  "variables": ["trace_id"],
-  "usageScope": "Human Review",
-  "relatedTools": ["ticket.search"],
-  "status": "DRAFT"
-}
-```
-
-`POST /prompts` creates a `DRAFT` Prompt when no status is supplied. `PUT /prompts/{id}` updates the existing record and returns structured `404` when the id is unknown.
-
-`POST /prompts/{id}/publish` validates that `name` and `templateContent` are present. Declared variables that are not found as `{{variable}}` placeholders are returned as `warnings`; publish still returns `PromptDetail` and sets status to `ACTIVE`.
-
-`POST /prompts/{id}/archive` sets status to `ARCHIVED`. Create, update, publish, archive, and render write `AuditLogEntry` records.
-
-Render request:
-
-```json
-{
-  "requester": "admin",
-  "variables": {
-    "customer_id": "CUST-202405-000123",
-    "policy_doc": "policy-docs",
-    "locale": "zh-CN"
-  }
-}
-```
-
-Render response returns `valid`, `validationErrors`, `renderedPrompt`, and `renderedAt`. Missing variables return a structured validation result. Render is demo/sandbox behavior and records an `AuditLogEntry`.
-
-## Resources
-
-- `GET /resources`
-- `POST /resources`
-- `GET /resources/{id}`
-- `PUT /resources/{id}`
-- `POST /resources/{id}/publish`
-- `POST /resources/{id}/archive`
-
-`GET /resources?page=&size=&keyword=&status=&type=` returns `PageResponse<ResourceDocument>`.
-
-Resource fields include:
-
-- `id`
-- `name`
-- `type`
-- `description`
-- `status`
-- `tags`
-- `linkedTools`
-- `updatedAt`
-- `referenceCount`
-
-Resource detail includes:
-
-- `resource`
-- `contentSummary`
-- `schemaPreview`
-- `markdownPreview`
-- `linkedTools`
-- `relatedPrompts`
-- `recentReferences`
-- `auditLogs`
-
-Create/update request:
-
-```json
-{
-  "name": "权限策略说明",
+  "name": "policy-boundary-note",
   "type": "Markdown",
-  "description": "本地 demo 权限范围说明",
-  "contentSummary": "记录 Tool、Prompt、Resource 的演示权限边界。",
+  "description": "Local demo permission scope note",
+  "contentSummary": "Records Tool, Prompt, and Resource demo governance boundaries.",
   "schemaPreview": "",
-  "markdownPreview": "## 权限边界\n仅用于 demo/sandbox。",
+  "markdownPreview": "## Permission Boundary
+Demo and sandbox only.",
   "tags": ["governance", "RBAC"],
   "linkedTools": ["db.query.readonly"],
-  "relatedPrompts": ["prompt-review-summary"],
+  "relatedPrompts": ["review.summary.prompt"],
   "status": "DRAFT"
 }
 ```
@@ -276,6 +240,19 @@ Validation failures return:
 {
   "error": "Prompt name is required before publish",
   "type": "validation_error"
+}
+```
+
+
+Policy failures return HTTP `403`:
+
+```json
+{
+  "code": "FORBIDDEN",
+  "message": "当前角色无权执行该操作",
+  "action": "REVIEW_DECIDE",
+  "role": "DEVELOPER",
+  "requestId": "req_12ab34cd56ef"
 }
 ```
 

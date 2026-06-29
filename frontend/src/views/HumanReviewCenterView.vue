@@ -6,7 +6,7 @@ import ReviewDecisionPanel from '../components/ReviewDecisionPanel.vue'
 import ReviewDetailPanel from '../components/ReviewDetailPanel.vue'
 import ReviewQueue from '../components/ReviewQueue.vue'
 import SectionCard from '../components/SectionCard.vue'
-import { decideReview, getAuditLogsPage, getReviewsPage, getToolCalls, getTools, getTrace } from '../services/api'
+import { ApiRequestError, decideReview, getAuditLogsPage, getReviewsPage, getToolCalls, getTools, getTrace } from '../services/api'
 import type { AuditLogEntry, CallStatus, PageResponse, ToolCallRecord, ToolCallReview, ToolDefinition, TraceEvent } from '../types'
 
 const reviews = ref<ToolCallReview[]>([])
@@ -20,6 +20,7 @@ const trace = ref<TraceEvent[]>([])
 const selectedReview = ref<ToolCallReview | null>(null)
 const source = ref<'api' | 'demo-fallback'>('demo-fallback')
 const busy = ref(false)
+const decisionError = ref('')
 const pageSize = 6
 
 const selectedCall = computed(() => calls.value.find((call) => call.id === selectedReview.value?.callId) ?? null)
@@ -72,9 +73,12 @@ async function loadTrace() {
 async function handleDecision(action: 'approve' | 'reject' | 'request-changes', comment: string) {
   if (!selectedReview.value) return
   busy.value = true
+  decisionError.value = ''
   try {
     await decideReview(selectedReview.value.id, action, comment)
     await loadReviewData()
+  } catch (error) {
+    decisionError.value = error instanceof ApiRequestError ? error.message : error instanceof Error ? error.message : 'Human Review 决策失败'
   } finally {
     busy.value = false
   }
@@ -94,6 +98,8 @@ async function handleDecision(action: 'approve' | 'reject' | 'request-changes', 
         <strong>{{ pendingCount }} 待审核 · {{ reviewPage.total }} Review</strong>
       </div>
     </header>
+
+    <div v-if="decisionError" class="save-status-banner error">{{ decisionError }}</div>
 
     <div class="review-layout">
       <SectionCard title="待审核队列" eyebrow="Human Review">

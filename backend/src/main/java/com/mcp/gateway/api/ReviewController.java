@@ -4,6 +4,8 @@ import com.mcp.gateway.model.CallStatus;
 import com.mcp.gateway.model.PageResponse;
 import com.mcp.gateway.model.RiskLevel;
 import com.mcp.gateway.model.ToolCallReview;
+import com.mcp.gateway.security.PolicyAction;
+import com.mcp.gateway.security.PolicyService;
 import com.mcp.gateway.service.GatewayService;
 import org.springframework.web.bind.annotation.*;
 
@@ -12,9 +14,11 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/reviews")
 public class ReviewController {
     private final GatewayService gateway;
+    private final PolicyService policy;
 
-    public ReviewController(GatewayService gateway) {
+    public ReviewController(GatewayService gateway, PolicyService policy) {
         this.gateway = gateway;
+        this.policy = policy;
     }
 
     @GetMapping
@@ -30,17 +34,32 @@ public class ReviewController {
     }
 
     @PostMapping("/{id}/approve")
-    public ToolCallReview approve(@PathVariable String id, @RequestBody(required = false) ReviewRequest request) {
+    public ToolCallReview approve(
+            @PathVariable String id,
+            @RequestBody(required = false) ReviewRequest request,
+            @RequestHeader(value = "X-Demo-Role", required = false) String demoRole
+    ) {
+        policy.require(demoRole, PolicyAction.REVIEW_DECIDE);
         return gateway.approveReview(id, request == null ? new ReviewRequest("admin", "") : request);
     }
 
     @PostMapping("/{id}/reject")
-    public ToolCallReview reject(@PathVariable String id, @RequestBody(required = false) ReviewRequest request) {
+    public ToolCallReview reject(
+            @PathVariable String id,
+            @RequestBody(required = false) ReviewRequest request,
+            @RequestHeader(value = "X-Demo-Role", required = false) String demoRole
+    ) {
+        policy.require(demoRole, PolicyAction.REVIEW_DECIDE);
         return gateway.rejectReview(id, request == null ? new ReviewRequest("admin", "") : request);
     }
 
     @PostMapping("/{id}/request-changes")
-    public ToolCallReview requestChanges(@PathVariable String id, @RequestBody(required = false) ReviewRequest request) {
+    public ToolCallReview requestChanges(
+            @PathVariable String id,
+            @RequestBody(required = false) ReviewRequest request,
+            @RequestHeader(value = "X-Demo-Role", required = false) String demoRole
+    ) {
+        policy.require(demoRole, PolicyAction.REVIEW_DECIDE);
         return gateway.requestChanges(id, request == null ? new ReviewRequest("admin", "") : request);
     }
 }

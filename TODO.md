@@ -2,7 +2,7 @@
 
 ## P5 Candidates
 
-- Add a stricter RBAC policy model.
+- Upgrade the demo PolicyService to production-grade authentication and authorization only after adding a real identity boundary.
 - Add optional local H2 file profile documentation or scripts for longer manual testing.
 
 ## Out Of Scope For P1

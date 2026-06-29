@@ -5,12 +5,15 @@ import { resolve } from 'node:path'
 
 const root = resolve(import.meta.dirname, '..')
 const projectRoot = resolve(root, '..')
-const url = 'http://127.0.0.1:5173'
-const apiUrl = 'http://127.0.0.1:8080/api/tools'
+const backendPort = process.env.SCREENSHOT_BACKEND_PORT ?? '18080'
+const frontendPort = process.env.SCREENSHOT_FRONTEND_PORT ?? '5173'
+const url = `http://127.0.0.1:${frontendPort}`
+const apiBase = `http://127.0.0.1:${backendPort}/api`
+const apiUrl = `${apiBase}/tools`
 const isWindows = process.platform === 'win32'
 
 const backend = isWindows
-  ? spawn('cmd.exe', ['/d', '/s', '/c', 'mvn spring-boot:run'], {
+  ? spawn('cmd.exe', ['/d', '/s', '/c', `mvn spring-boot:run -Dspring-boot.run.arguments=--server.port=${backendPort}`], {
       cwd: resolve(projectRoot, 'backend'),
       stdio: 'pipe'
     })
@@ -20,15 +23,15 @@ const backend = isWindows
     })
 
 const frontend = isWindows
-  ? spawn('cmd.exe', ['/d', '/s', '/c', 'npm run dev -- --host 127.0.0.1'], {
+  ? spawn('cmd.exe', ['/d', '/s', '/c', `npm run dev -- --host 127.0.0.1 --port ${frontendPort} --strictPort`], {
       cwd: root,
       stdio: 'pipe',
-      env: { ...process.env, BROWSER: 'none' }
+      env: { ...process.env, BROWSER: 'none', VITE_API_BASE: apiBase }
     })
   : spawn('npm', ['run', 'dev', '--', '--host', '127.0.0.1'], {
       cwd: root,
       stdio: 'pipe',
-      env: { ...process.env, BROWSER: 'none' }
+      env: { ...process.env, BROWSER: 'none', VITE_API_BASE: apiBase }
     })
 
 try {
@@ -50,27 +53,27 @@ try {
 }
 
 async function capturePages(page, outputDir) {
-  await page.getByRole('button', { name: /Tool Call 工作台/ }).click()
+  await page.locator('button.nav-item').filter({ hasText: /Tool Call/ }).click()
   await page.waitForLoadState('networkidle')
   await page.screenshot({ path: resolve(outputDir, 'mcp-tool-workbench.png'), fullPage: true })
 
-  await page.getByRole('button', { name: /Tool Registry/ }).click()
+  await page.locator('button.nav-item').filter({ hasText: /Tool Registry/ }).click()
   await page.waitForTimeout(500)
   await page.screenshot({ path: resolve(outputDir, 'tool-registry.png'), fullPage: true })
 
-  await page.getByRole('button', { name: /Human Review/ }).click()
+  await page.locator('button.nav-item').filter({ hasText: /Human Review/ }).click()
   await page.waitForTimeout(500)
   await page.screenshot({ path: resolve(outputDir, 'human-review-center.png'), fullPage: true })
 
-  await page.getByRole('button', { name: /Trace Evidence/ }).click()
+  await page.locator('button.nav-item').filter({ hasText: /Trace Evidence/ }).click()
   await page.waitForTimeout(500)
   await page.screenshot({ path: resolve(outputDir, 'trace-evidence.png'), fullPage: true })
 
-  await page.getByRole('button', { name: /审计日志/ }).click()
+  await page.locator('button.nav-item').filter({ hasText: /\u5ba1\u8ba1\u65e5\u5fd7/ }).click()
   await page.waitForTimeout(500)
   await page.screenshot({ path: resolve(outputDir, 'audit-log.png'), fullPage: true })
 
-  await page.getByRole('button', { name: /提示词工作室/ }).click()
+  await page.locator('button.nav-item').filter({ hasText: /Prompt|\u63d0\u793a\u8bcd/ }).click()
   await page.waitForTimeout(500)
   await page.getByRole('button', { name: /Render Prompt/ }).click()
   await page.waitForTimeout(700)

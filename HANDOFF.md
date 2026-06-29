@@ -15,6 +15,7 @@ MCP Tool Gateway P1 is a runnable demo project with:
 - P5B Prompt / Resource editing workflow.
 - UI polish for the admin avatar and demo user menu.
 - P5C paginated filtering for governance lists and a lightweight Audit Log page.
+- P5D RBAC PolicyService demo for sensitive API actions and structured `403` responses.
 
 ## Visual Direction
 
@@ -35,6 +36,7 @@ Default entry is B2 Tool Call Workbench, not a traditional KPI dashboard. Keep t
 - `db.query.readonly` is SELECT-only.
 - H2 persistence is local demo persistence, not a production database architecture.
 - P5C filters are local demo H2 filters, not production search or Elasticsearch.
+- PolicyService is demo RBAC only; `X-Demo-Role` is a local demo/testing helper, not a production auth header.
 - Concept images are not runtime product screenshots.
 
 ## P2 Notes
@@ -85,3 +87,12 @@ Default entry is B2 Tool Call Workbench, not a traditional KPI dashboard. Keep t
 - Trace Evidence, Human Review, Prompt Studio, Resource Library, and Audit Log pages use compact pagination controls.
 - Audit Log is a real lightweight page with local filters for action, actor, target, and keyword.
 - P5C does not add production search, full-text indexing, complete MCP protocol support, real external execution, or production RBAC.
+## P5D Notes
+
+- `PolicyService` centralizes role-to-action checks for the demo gateway.
+- Demo roles are `ADMIN`, `DEVELOPER`, `REVIEWER`, and `VIEWER`.
+- Demo actions are `TOOL_INVOKE`, `TOOL_MANAGE`, `PROMPT_EDIT`, `PROMPT_PUBLISH`, `RESOURCE_EDIT`, `RESOURCE_PUBLISH`, `REVIEW_DECIDE`, `TRACE_VIEW`, `AUDIT_VIEW`, and `SETTINGS_MANAGE`.
+- Sensitive endpoints for Tool invoke, Prompt/Resource edits and publish/archive, Review decisions, Trace reads, and Audit Log reads call policy before business actions.
+- Unauthorized actions return structured `403` JSON with `code`, `message`, `action`, `role`, and `requestId`.
+- Tests can simulate roles with `X-Demo-Role`; this is only a demo/testing helper.
+- P5D does not add OAuth, SSO, JWT, real account management, multi-tenancy, complete MCP protocol compatibility, or real external tool execution.

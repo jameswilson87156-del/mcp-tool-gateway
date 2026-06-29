@@ -3,6 +3,8 @@ package com.mcp.gateway.api;
 import com.mcp.gateway.model.PageResponse;
 import com.mcp.gateway.model.PromptTemplate;
 import com.mcp.gateway.model.ResourceDocument;
+import com.mcp.gateway.security.PolicyAction;
+import com.mcp.gateway.security.PolicyService;
 import com.mcp.gateway.service.GatewayService;
 import org.springframework.web.bind.annotation.*;
 
@@ -10,9 +12,11 @@ import org.springframework.web.bind.annotation.*;
 @CrossOrigin(origins = "*")
 public class ContentController {
     private final GatewayService gateway;
+    private final PolicyService policy;
 
-    public ContentController(GatewayService gateway) {
+    public ContentController(GatewayService gateway, PolicyService policy) {
         this.gateway = gateway;
+        this.policy = policy;
     }
 
     @GetMapping("/api/prompts")
@@ -32,22 +36,39 @@ public class ContentController {
     }
 
     @PostMapping("/api/prompts")
-    public com.mcp.gateway.model.PromptDetail createPrompt(@RequestBody PromptUpsertRequest request) {
+    public com.mcp.gateway.model.PromptDetail createPrompt(
+            @RequestBody PromptUpsertRequest request,
+            @RequestHeader(value = "X-Demo-Role", required = false) String demoRole
+    ) {
+        policy.require(demoRole, PolicyAction.PROMPT_EDIT);
         return gateway.createPrompt(request);
     }
 
     @PutMapping("/api/prompts/{id}")
-    public com.mcp.gateway.model.PromptDetail updatePrompt(@PathVariable String id, @RequestBody PromptUpsertRequest request) {
+    public com.mcp.gateway.model.PromptDetail updatePrompt(
+            @PathVariable String id,
+            @RequestBody PromptUpsertRequest request,
+            @RequestHeader(value = "X-Demo-Role", required = false) String demoRole
+    ) {
+        policy.require(demoRole, PolicyAction.PROMPT_EDIT);
         return gateway.updatePrompt(id, request);
     }
 
     @PostMapping("/api/prompts/{id}/publish")
-    public com.mcp.gateway.model.PromptDetail publishPrompt(@PathVariable String id) {
+    public com.mcp.gateway.model.PromptDetail publishPrompt(
+            @PathVariable String id,
+            @RequestHeader(value = "X-Demo-Role", required = false) String demoRole
+    ) {
+        policy.require(demoRole, PolicyAction.PROMPT_PUBLISH);
         return gateway.publishPrompt(id);
     }
 
     @PostMapping("/api/prompts/{id}/archive")
-    public com.mcp.gateway.model.PromptDetail archivePrompt(@PathVariable String id) {
+    public com.mcp.gateway.model.PromptDetail archivePrompt(
+            @PathVariable String id,
+            @RequestHeader(value = "X-Demo-Role", required = false) String demoRole
+    ) {
+        policy.require(demoRole, PolicyAction.PROMPT_PUBLISH);
         return gateway.archivePrompt(id);
     }
 
@@ -73,22 +94,39 @@ public class ContentController {
     }
 
     @PostMapping("/api/resources")
-    public com.mcp.gateway.model.ResourceDetail createResource(@RequestBody ResourceUpsertRequest request) {
+    public com.mcp.gateway.model.ResourceDetail createResource(
+            @RequestBody ResourceUpsertRequest request,
+            @RequestHeader(value = "X-Demo-Role", required = false) String demoRole
+    ) {
+        policy.require(demoRole, PolicyAction.RESOURCE_EDIT);
         return gateway.createResource(request);
     }
 
     @PutMapping("/api/resources/{id}")
-    public com.mcp.gateway.model.ResourceDetail updateResource(@PathVariable String id, @RequestBody ResourceUpsertRequest request) {
+    public com.mcp.gateway.model.ResourceDetail updateResource(
+            @PathVariable String id,
+            @RequestBody ResourceUpsertRequest request,
+            @RequestHeader(value = "X-Demo-Role", required = false) String demoRole
+    ) {
+        policy.require(demoRole, PolicyAction.RESOURCE_EDIT);
         return gateway.updateResource(id, request);
     }
 
     @PostMapping("/api/resources/{id}/publish")
-    public com.mcp.gateway.model.ResourceDetail publishResource(@PathVariable String id) {
+    public com.mcp.gateway.model.ResourceDetail publishResource(
+            @PathVariable String id,
+            @RequestHeader(value = "X-Demo-Role", required = false) String demoRole
+    ) {
+        policy.require(demoRole, PolicyAction.RESOURCE_PUBLISH);
         return gateway.publishResource(id);
     }
 
     @PostMapping("/api/resources/{id}/archive")
-    public com.mcp.gateway.model.ResourceDetail archiveResource(@PathVariable String id) {
+    public com.mcp.gateway.model.ResourceDetail archiveResource(
+            @PathVariable String id,
+            @RequestHeader(value = "X-Demo-Role", required = false) String demoRole
+    ) {
+        policy.require(demoRole, PolicyAction.RESOURCE_PUBLISH);
         return gateway.archiveResource(id);
     }
 }

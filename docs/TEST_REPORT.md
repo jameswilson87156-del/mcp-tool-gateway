@@ -14,7 +14,7 @@ This file is updated after local verification.
 
 Date: 2026-06-29
 
-- `mvn test`: passed. 27 tests, 0 failures, 0 errors.
+- `mvn test`: passed. 34 tests, 0 failures, 0 errors.
 - `npm run build`: passed. `vue-tsc --noEmit` and `vite build` completed.
 - `npm run screenshots`: passed. The script started the Spring Boot backend and Vite frontend, then captured real browser screenshots.
 - `git diff --check`: passed. Git reported Windows line-ending normalization warnings only.
@@ -48,3 +48,4 @@ The captured page follows the B2 Tool Call Workbench direction:
 - P5A keeps the P1-P4 frontend shape unchanged while moving backend state to H2 + JdbcTemplate repositories.
 - P5B adds Prompt / Resource create, update, draft, publish, archive, validation feedback, and Audit Log evidence while preserving the existing developer-workbench visual system.
 - P5C adds PageResponse pagination and local demo filtering for Trace, Review, Audit Log, Prompt, and Resource lists, plus a lightweight real Audit Log page.
+- P5D adds PolicyService-backed demo RBAC checks and structured `403` responses for sensitive actions without changing the visual direction.

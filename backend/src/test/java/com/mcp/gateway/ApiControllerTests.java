@@ -511,6 +511,145 @@ class ApiControllerTests {
     }
 
     @Test
+    void adminCanCreatePromptWithPolicy() throws Exception {
+        mockMvc.perform(post("/api/prompts")
+                        .header("X-Demo-Role", "ADMIN")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "policy.admin.prompt",
+                                  "description": "RBAC demo prompt",
+                                  "category": "Security",
+                                  "templateContent": "请基于 {{input}} 输出 RBAC demo 说明。",
+                                  "variables": ["input"],
+                                  "usageScope": "RBAC demo"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.prompt.status").value("DRAFT"));
+    }
+
+    @Test
+    void adminCanPublishResourceWithPolicy() throws Exception {
+        var created = mockMvc.perform(post("/api/resources")
+                        .header("X-Demo-Role", "ADMIN")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "policy-resource",
+                                  "type": "POLICY",
+                                  "description": "RBAC demo resource",
+                                  "contentSummary": "记录 RBAC demo policy 边界。",
+                                  "markdownPreview": "## RBAC demo",
+                                  "tags": ["rbac"],
+                                  "linkedTools": ["db.query.readonly"],
+                                  "relatedPrompts": []
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        var resourceId = extractJsonString(created, "id");
+
+        mockMvc.perform(post("/api/resources/{id}/publish", resourceId)
+                        .header("X-Demo-Role", "ADMIN"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.resource.status").value("PUBLISHED"));
+    }
+
+    @Test
+    void reviewerCanApproveReviewWithPolicy() throws Exception {
+        var response = createPendingReviewCall();
+        var reviewId = extractJsonString(response, "reviewId");
+
+        mockMvc.perform(post("/api/reviews/{id}/approve", reviewId)
+                        .header("X-Demo-Role", "REVIEWER")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "reviewer": "reviewer.li",
+                                  "comment": "RBAC demo approve"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("APPROVED"));
+    }
+
+    @Test
+    void developerCannotApproveReviewAndGetsStructured403() throws Exception {
+        var response = createPendingReviewCall();
+        var reviewId = extractJsonString(response, "reviewId");
+        var auditCount = countRows("audit_logs");
+
+        mockMvc.perform(post("/api/reviews/{id}/approve", reviewId)
+                        .header("X-Demo-Role", "DEVELOPER")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "reviewer": "developer",
+                                  "comment": "should fail"
+                                }
+                                """))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"))
+                .andExpect(jsonPath("$.action").value("REVIEW_DECIDE"))
+                .andExpect(jsonPath("$.role").value("DEVELOPER"))
+                .andExpect(jsonPath("$.requestId").exists());
+
+        org.assertj.core.api.Assertions.assertThat(countRows("audit_logs")).isEqualTo(auditCount);
+    }
+
+    @Test
+    void viewerCannotInvokeHighRiskToolWithPolicy() throws Exception {
+        mockMvc.perform(post("/api/tools/db.query.readonly/invoke")
+                        .header("X-Demo-Role", "VIEWER")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "environment": "production",
+                                  "requester": "viewer",
+                                  "parameters": {
+                                    "sql": "select * from demo_customers limit 20"
+                                  }
+                                }
+                                """))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"))
+                .andExpect(jsonPath("$.action").value("TOOL_INVOKE"))
+                .andExpect(jsonPath("$.role").value("VIEWER"));
+    }
+
+    @Test
+    void viewerCanViewTraceWhenPolicyAllowsTraceView() throws Exception {
+        mockMvc.perform(get("/api/traces")
+                        .header("X-Demo-Role", "VIEWER"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items").isArray());
+    }
+
+    @Test
+    void authorizedSensitiveOperationStillWritesAuditLog() throws Exception {
+        var auditCount = countRows("audit_logs");
+        var response = createPendingReviewCall();
+        var reviewId = extractJsonString(response, "reviewId");
+
+        mockMvc.perform(post("/api/reviews/{id}/reject", reviewId)
+                        .header("X-Demo-Role", "REVIEWER")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "reviewer": "reviewer.li",
+                                  "comment": "RBAC demo reject"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("REJECTED"));
+
+        org.assertj.core.api.Assertions.assertThat(countRows("audit_logs")).isGreaterThan(auditCount);
+    }
+    @Test
     void blocksDangerousSqlEvenForReadonlyTool() throws Exception {
         mockMvc.perform(post("/api/tools/db.query.readonly/invoke")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -528,6 +667,25 @@ class ApiControllerTests {
                 .andExpect(jsonPath("$.response.blocked").value(true));
     }
 
+    private String createPendingReviewCall() throws Exception {
+        return mockMvc.perform(post("/api/tools/db.query.readonly/invoke")
+                        .header("X-Demo-Role", "ADMIN")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "environment": "production",
+                                  "requester": "admin",
+                                  "parameters": {
+                                    "sql": "select * from demo_customers limit 20"
+                                  }
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("PENDING_REVIEW"))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+    }
     private long countRows(String table) {
         Long count = jdbc.queryForObject("select count(*) from " + table, Long.class);
         return count == null ? 0 : count;

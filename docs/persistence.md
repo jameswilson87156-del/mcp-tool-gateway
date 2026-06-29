@@ -6,6 +6,8 @@ P5B uses the same repository boundary for Prompt / Resource create, update, publ
 
 P5C adds service-layer filtering and pagination for local demo governance lists.
 
+P5D uses the same `role_policies` demo table through `PolicyService` for sensitive API checks.
+
 ## Storage
 
 The backend uses Spring JDBC repositories under `backend/src/main/java/com/mcp/gateway/persistence`.
@@ -65,6 +67,8 @@ Prompt / Resource write operations persist to the local H2 demo store and write 
 
 P5C pagination and filtering are designed for the seeded/local H2 demo data set. They are not full-text search, not Elasticsearch, and not production-grade search infrastructure.
 
+PolicyService reads local demo role policy rows. It does not provide OAuth, SSO, JWT, multi-tenant authorization, or production account management.
+
 It does not add production-grade permissions, complete official MCP protocol compatibility, real provider execution, real enterprise data, unattended high-risk execution, or an enterprise knowledge graph.
 
-Future production-like work could migrate the same repository boundary toward MySQL or PostgreSQL, add migrations, add pagination, and add stricter RBAC policy enforcement.
+Future production-like work could migrate the same repository boundary toward MySQL or PostgreSQL, add migrations, replace the demo header with real identity, and move authorization decisions into a production security layer.
