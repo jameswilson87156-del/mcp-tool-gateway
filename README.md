@@ -2,6 +2,8 @@
 
 [![MCP Tool Gateway CI](https://github.com/jameswilson87156-del/mcp-tool-gateway/actions/workflows/ci.yml/badge.svg)](https://github.com/jameswilson87156-del/mcp-tool-gateway/actions/workflows/ci.yml)
 
+Portfolio Case Study: [https://ai-agent-portfolio-hub.vercel.app/projects/mcp-gateway](https://ai-agent-portfolio-hub.vercel.app/projects/mcp-gateway)
+
 面向企业 AI Agent 的 MCP-style 工具接入网关，支持 Tool / Prompt / Resource 管理、Tool Schema、权限策略、Human Review、Trace Evidence、Audit Log、H2 持久化、RBAC Policy demo 与 MCP-style JSON-RPC adapter demo。
 
 > 当前定位：可运行、可测试、可截图复核的 portfolio demo / learning project。项目强调 Agent 调用工具时的治理与证据链，不宣称完整 MCP 协议兼容或生产就绪。
